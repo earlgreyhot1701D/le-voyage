@@ -1,8 +1,15 @@
+import { fixtureTrip } from '@/data/fixtures';
+
 interface TopBarProps {
   date?: string;
 }
 
-export function TopBar({ date = 'October 2025' }: TopBarProps) {
+// Default to fixture trip date if not provided
+const defaultDate = fixtureTrip.start_date 
+  ? new Date(fixtureTrip.start_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  : 'April 2025';
+
+export function TopBar({ date = defaultDate }: TopBarProps) {
   return (
     <div className="px-10 py-8 flex justify-between items-center">
       <div className="search-container">

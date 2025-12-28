@@ -2,25 +2,7 @@ import { AppShell } from '@/components/layout';
 import { MainContent } from '@/components/layout';
 import { RightPanel } from '@/components/layout';
 import { Link } from 'react-router-dom';
-
-const mockTrips = [
-  {
-    id: '1',
-    title: 'Paris Adventure',
-    destination: 'Paris, France',
-    dates: 'Mar 15 - Mar 22, 2025',
-    status: 'planning' as const,
-    daysCount: 7,
-  },
-  {
-    id: '2',
-    title: 'Tokyo Discovery',
-    destination: 'Tokyo, Japan',
-    dates: 'May 10 - May 20, 2025',
-    status: 'upcoming' as const,
-    daysCount: 10,
-  },
-];
+import { fixtureTrip } from '@/data/fixtures';
 
 const statusColors = {
   planning: 'bg-accent/20 text-accent',
@@ -29,31 +11,56 @@ const statusColors = {
   completed: 'bg-muted text-muted-foreground',
 };
 
-function TripCard({ trip }: { trip: typeof mockTrips[0] }) {
+function TripCard() {
+  // Format dates for display
+  const startDate = fixtureTrip.start_date 
+    ? new Date(fixtureTrip.start_date) 
+    : null;
+  const endDate = fixtureTrip.end_date 
+    ? new Date(fixtureTrip.end_date) 
+    : null;
+  
+  const dateRange = startDate && endDate
+    ? `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    : 'Dates TBD';
+  
+  const daysCount = startDate && endDate 
+    ? Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    : 0;
+
   return (
     <Link
-      to={`/planner?trip=${trip.id}`}
+      to="/planner"
       className="content-card block hover:shadow-md transition-shadow cursor-pointer group"
     >
       <div className="flex items-start justify-between mb-3">
         <h3 className="font-serif text-xl font-semibold text-card-foreground group-hover:text-primary transition-colors">
-          {trip.title}
+          {fixtureTrip.title}
         </h3>
-        <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${statusColors[trip.status]}`}>
-          {trip.status.replace('_', ' ')}
+        <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${statusColors[fixtureTrip.status]}`}>
+          {fixtureTrip.status.replace('_', ' ')}
         </span>
       </div>
-      <p className="text-muted-foreground mb-2">{trip.destination}</p>
+      <p className="text-muted-foreground mb-2">{fixtureTrip.destination}</p>
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
-        <span>{trip.dates}</span>
+        <span>{dateRange}</span>
         <span>•</span>
-        <span>{trip.daysCount} days</span>
+        <span>{daysCount} days</span>
       </div>
     </Link>
   );
 }
 
 function QuickActions() {
+  // Calculate days until trip
+  const startDate = fixtureTrip.start_date 
+    ? new Date(fixtureTrip.start_date) 
+    : null;
+  const today = new Date();
+  const daysUntil = startDate 
+    ? Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
   return (
     <RightPanel title="Quick Actions">
       <div className="space-y-3">
@@ -95,8 +102,10 @@ function QuickActions() {
         </h3>
         <div className="space-y-2">
           <div className="p-3 rounded-lg bg-background">
-            <p className="font-medium text-sm">Paris Adventure</p>
-            <p className="text-xs text-muted-foreground">Starts in 77 days</p>
+            <p className="font-medium text-sm">{fixtureTrip.title}</p>
+            <p className="text-xs text-muted-foreground">
+              {daysUntil > 0 ? `Starts in ${daysUntil} days` : 'Trip in progress'}
+            </p>
           </div>
         </div>
       </div>
@@ -112,9 +121,7 @@ export default function Index() {
         subtitle="Plan, organize, and explore your upcoming adventures"
       >
         <div className="space-y-4">
-          {mockTrips.map((trip) => (
-            <TripCard key={trip.id} trip={trip} />
-          ))}
+          <TripCard />
         </div>
 
         <div className="mt-8">
