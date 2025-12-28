@@ -1,134 +1,156 @@
-import { AppShell, MainContent, RightPanel } from '@/components/layout';
-import { EmptyState } from '@/components/common';
+import { AppShell } from '@/components/layout';
+import { TopBar } from '@/components/layout/TopBar';
 
 const mockDays = [
-  { id: 'd1', dayNumber: 1, date: 'Mar 15', title: 'Arrival & Montmartre' },
-  { id: 'd2', dayNumber: 2, date: 'Mar 16', title: 'Louvre & Marais' },
-  { id: 'd3', dayNumber: 3, date: 'Mar 17', title: 'Versailles Day Trip' },
+  { id: 'd1', label: 'Mon 12', active: true },
+  { id: 'd2', label: 'Tue 13', active: false },
+  { id: 'd3', label: 'Wed 14', active: false },
+  { id: 'd4', label: 'Thu 15', active: false },
+  { id: 'd5', label: 'Fri 16', active: false },
 ];
 
-const mockActivities = [
-  { id: 'a1', time: '14:00', title: 'Check into Hotel', location: 'Le Marais', category: 'accommodation' },
-  { id: 'a2', time: '16:00', title: 'Explore Montmartre', location: 'Montmartre', category: 'activity' },
-  { id: 'a3', time: '19:30', title: 'Dinner at Le Petit Cler', location: 'Rue Cler', category: 'food' },
+const mockEvents = [
+  { 
+    id: 'e1', 
+    time: '09:30', 
+    title: 'Petit Déjeuner at Café de Flore',
+    description: 'Historical landmark. Try the "Chocolat Spécial Flore".',
+    badge: '★ 4.5/5 • Iconic'
+  },
+  { 
+    id: 'e2', 
+    time: '11:00', 
+    title: 'Musée d\'Orsay',
+    description: 'Guided tour of the Impressionist level. Entrance via Door C.',
+    ticket: { id: 'LV-99201', label: 'View PDF' }
+  },
+  { 
+    id: 'e3', 
+    time: '13:30', 
+    title: 'Le Train Bleu',
+    description: 'Lunch reservation for 2. Art Nouveau interiors.',
+    isLast: true
+  },
 ];
 
-const categoryIcons: Record<string, string> = {
-  accommodation: '⌂',
-  activity: '✦',
-  food: '◉',
-  transport: '→',
-  other: '•',
-};
-
-function DayPills() {
+function DaySelector() {
   return (
-    <div className="flex gap-2 flex-wrap mb-6">
-      {mockDays.map((day, index) => (
-        <button
+    <div className="flex gap-5 mb-8 border-b border-border pb-4">
+      {mockDays.map((day) => (
+        <div
           key={day.id}
-          className={`day-pill ${index === 0 ? '' : 'bg-secondary text-secondary-foreground'}`}
+          className={`day-pill ${day.active ? 'active' : ''}`}
         >
-          <span className="font-semibold">Day {day.dayNumber}</span>
-          <span className="opacity-70">{day.date}</span>
-        </button>
+          {day.label}
+        </div>
       ))}
-      <button className="px-4 py-2 rounded-full border-2 border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors">
-        + Add Day
-      </button>
     </div>
   );
 }
 
-function ActivityCard({ activity }: { activity: typeof mockActivities[0] }) {
+function EventRow({ event }: { event: typeof mockEvents[0] }) {
   return (
-    <div className="content-card flex items-start gap-4 group hover:shadow-md transition-shadow">
-      <div className="flex flex-col items-center">
-        <span className="text-sm font-medium text-primary">{activity.time}</span>
-        <div className="w-px h-8 bg-border mt-2" />
+    <div className="event-row">
+      <div className="event-time">{event.time}</div>
+      <div className={`event-details ${event.isLast ? 'border-none' : ''}`}>
+        <h4>{event.title}</h4>
+        <p className="text-[13px] text-muted-foreground">{event.description}</p>
+        
+        {event.badge && (
+          <span 
+            className="inline-block mt-2.5 text-[11px]"
+            style={{ color: 'hsl(var(--iron-rust))' }}
+          >
+            {event.badge}
+          </span>
+        )}
+        
+        {event.ticket && (
+          <div 
+            className="mt-2.5 p-2.5 rounded-lg text-xs"
+            style={{ 
+              background: '#f9f9f9', 
+              borderLeft: '3px solid hsl(var(--amber-glass))' 
+            }}
+          >
+            Ticket ID: {event.ticket.id} • 
+            <a href="#" className="text-muted ml-1 hover:underline">
+              {event.ticket.label}
+            </a>
+          </div>
+        )}
       </div>
-      <div className="flex-1">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-lg">{categoryIcons[activity.category] || '•'}</span>
-          <h4 className="font-medium text-foreground">{activity.title}</h4>
-        </div>
-        <p className="text-sm text-muted-foreground">{activity.location}</p>
-      </div>
-      <button className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground">
-        ⋮
-      </button>
     </div>
   );
 }
 
-function TripDetails() {
+function IntelligencePanel() {
   return (
-    <RightPanel title="Trip Details">
-      <div className="space-y-4">
-        <div>
-          <p className="text-sm text-muted-foreground mb-1">Destination</p>
-          <p className="font-medium">Paris, France</p>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground mb-1">Dates</p>
-          <p className="font-medium">Mar 15 - Mar 22, 2025</p>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground mb-1">Duration</p>
-          <p className="font-medium">7 days</p>
-        </div>
+    <aside className="flex flex-col gap-5">
+      {/* Mini Map */}
+      <div className="mini-map">
+        <div className="map-label">Real-time Map</div>
       </div>
 
-      <div className="mt-6 pt-6 border-t border-border">
-        <h3 className="font-serif font-semibold mb-3">Day 1 Summary</h3>
-        <p className="text-sm text-muted-foreground">
-          Arrival & Montmartre exploration. 3 activities planned.
+      {/* Gem Card - AI Insight */}
+      <div className="gem-card">
+        <h5 className="font-serif text-xl mb-2.5" style={{ color: 'hsl(var(--amber-glow))' }}>
+          Intelligence: Le Marais
+        </h5>
+        <p className="text-[13px] leading-relaxed opacity-90">
+          The archives suggest the <b>Passage des Panoramas</b> is less crowded at this hour. 
+          It's a 12-minute walk from your current location.
+        </p>
+        <button className="btn-nouveau">Reroute Journey</button>
+      </div>
+
+      {/* Budget Insight */}
+      <div className="insight-card">
+        <h5 className="font-serif text-xl mb-4">Budget Insight</h5>
+        <div 
+          className="h-2.5 rounded mb-2.5 overflow-hidden"
+          style={{ background: '#eee' }}
+        >
+          <div 
+            className="h-full"
+            style={{ width: '65%', background: 'hsl(var(--seine-blue))' }}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          You have utilized <b>65%</b> of your Parisian dining budget.
         </p>
       </div>
-
-      <div className="mt-6 pt-6 border-t border-border">
-        <h3 className="font-serif font-semibold mb-3">Map Preview</h3>
-        <div className="aspect-video bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
-          <span className="text-sm">Map available in Phase 2</span>
-        </div>
-      </div>
-    </RightPanel>
+    </aside>
   );
 }
 
 export default function TripPlannerPage() {
-  const hasActivities = mockActivities.length > 0;
-
   return (
-    <AppShell rightPanel={<TripDetails />}>
-      <MainContent
-        title="Paris Adventure"
-        subtitle="March 15 - 22, 2025"
+    <AppShell>
+      <TopBar />
+      
+      {/* Dashboard Grid - matches HTML exactly */}
+      <div 
+        className="grid flex-1 px-10 pb-10 overflow-y-auto scrollbar-thin"
+        style={{ 
+          gridTemplateColumns: '1fr 350px',
+          gap: '30px'
+        }}
       >
-        <DayPills />
+        {/* Itinerary Card */}
+        <section className="content-card">
+          <DaySelector />
+          
+          <h3 className="font-serif text-[32px] mb-8">Monday in the 6th</h3>
+          
+          {mockEvents.map((event) => (
+            <EventRow key={event.id} event={event} />
+          ))}
+        </section>
 
-        {hasActivities ? (
-          <div className="space-y-4">
-            {mockActivities.map((activity) => (
-              <ActivityCard key={activity.id} activity={activity} />
-            ))}
-            
-            <button className="w-full p-4 border-2 border-dashed border-border rounded-xl text-muted-foreground hover:border-primary hover:text-primary transition-colors">
-              + Add Activity
-            </button>
-          </div>
-        ) : (
-          <EmptyState
-            icon="✦"
-            title="No activities yet"
-            description="Start building your itinerary by adding activities to your day."
-            action={{
-              label: 'Add First Activity',
-              onClick: () => console.log('Add activity'),
-            }}
-          />
-        )}
-      </MainContent>
+        {/* Intelligence Panel */}
+        <IntelligencePanel />
+      </div>
     </AppShell>
   );
 }

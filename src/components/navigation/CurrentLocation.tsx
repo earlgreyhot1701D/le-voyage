@@ -1,19 +1,15 @@
 interface CurrentLocationProps {
-  city: string;
   neighborhood: string;
 }
 
-export function CurrentLocation({ city, neighborhood }: CurrentLocationProps) {
+export function CurrentLocation({ neighborhood }: CurrentLocationProps) {
   return (
-    <div className="mx-4 mb-4 p-4 bg-sidebar-accent rounded-lg">
-      <p className="text-xs font-sans font-semibold tracking-wider text-sidebar-foreground/60 uppercase mb-1">
-        Currently Exploring
+    <div className="mt-auto p-5 rounded-[15px]" style={{ background: 'rgba(0,0,0,0.2)' }}>
+      <p className="text-[11px] opacity-70 uppercase tracking-wider mb-1">
+        Currently In
       </p>
-      <p className="font-serif text-lg font-medium text-sidebar-foreground">
+      <p className="font-serif text-lg text-sidebar-primary">
         {neighborhood}
-      </p>
-      <p className="text-sm text-sidebar-foreground/80">
-        {city}
       </p>
     </div>
   );
