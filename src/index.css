@@ -1,108 +1,107 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@300;400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Le Voyage Design System - Guimard Theme
-   All colors are HSL values extracted from levoyage-2.html
+   Exact colors from levoyage-3.html
 */
 
 @layer base {
   :root {
-    /* Le Voyage Brand Colors */
-    --metro-green: 160 35% 35%;
-    --metro-green-dark: 160 35% 28%;
-    --metro-green-light: 160 25% 45%;
-    --parchment: 45 40% 94%;
-    --warm-cream: 40 35% 91%;
-    --ink: 30 10% 25%;
-    --muted-sage: 150 15% 70%;
-    --accent-copper: 25 60% 50%;
-    --soft-shadow: 0 0% 0%;
+    /* Le Voyage Brand Colors - Exact hex from HTML */
+    --metro-green: 160 38% 16%;          /* #1A3A32 */
+    --metro-green-dark: 160 38% 12%;     /* #122923 */
+    --parchment: 43 33% 96%;             /* #F9F7F2 */
+    --amber-glass: 43 65% 52%;           /* #D4AF37 */
+    --amber-glow: 47 83% 77%;            /* #F4E295 */
+    --seine-blue: 186 16% 54%;           /* #77969A */
+    --iron-rust: 25 75% 31%;             /* #8B4513 */
 
     /* Semantic mappings */
-    --background: 45 40% 94%;
-    --foreground: 30 10% 25%;
+    --background: 43 33% 96%;            /* parchment */
+    --foreground: 160 38% 16%;           /* metro-green */
 
     --card: 0 0% 100%;
-    --card-foreground: 30 10% 25%;
+    --card-foreground: 160 38% 16%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 30 10% 25%;
+    --popover-foreground: 160 38% 16%;
 
-    --primary: 160 35% 35%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 160 38% 16%;              /* metro-green */
+    --primary-foreground: 43 33% 96%;    /* parchment */
 
-    --secondary: 40 35% 91%;
-    --secondary-foreground: 30 10% 25%;
+    --secondary: 43 33% 96%;             /* parchment */
+    --secondary-foreground: 160 38% 16%;
 
-    --muted: 150 15% 70%;
-    --muted-foreground: 30 10% 40%;
+    --muted: 186 16% 54%;                /* seine-blue */
+    --muted-foreground: 186 16% 40%;
 
-    --accent: 25 60% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 43 65% 52%;                /* amber-glass */
+    --accent-foreground: 160 38% 16%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 40 20% 85%;
     --input: 40 20% 85%;
-    --ring: 160 35% 35%;
+    --ring: 43 65% 52%;                  /* amber-glass */
 
     --radius: 12px;
 
     /* Sidebar specific */
-    --sidebar-background: 160 35% 35%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 160 35% 35%;
-    --sidebar-accent: 160 35% 28%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 160 25% 45%;
-    --sidebar-ring: 0 0% 100%;
+    --sidebar-background: 160 38% 16%;   /* metro-green */
+    --sidebar-foreground: 43 33% 96%;    /* parchment */
+    --sidebar-primary: 43 65% 52%;       /* amber-glass */
+    --sidebar-primary-foreground: 160 38% 16%;
+    --sidebar-accent: 160 38% 12%;       /* metro-green-dark */
+    --sidebar-accent-foreground: 43 65% 52%; /* amber-glass for active */
+    --sidebar-border: 43 65% 52%;        /* amber-glass */
+    --sidebar-ring: 43 65% 52%;
+    --sidebar-muted: 186 16% 54%;        /* seine-blue */
 
     /* Layout dimensions */
     --sidebar-width: 280px;
     --right-panel-width: 350px;
     --dashboard-gap: 30px;
-    --content-padding: 30px;
+    --content-padding: 40px;
   }
 
   .dark {
-    --background: 30 10% 12%;
-    --foreground: 45 40% 94%;
+    --background: 160 38% 10%;
+    --foreground: 43 33% 96%;
 
-    --card: 30 10% 18%;
-    --card-foreground: 45 40% 94%;
+    --card: 160 38% 14%;
+    --card-foreground: 43 33% 96%;
 
-    --popover: 30 10% 18%;
-    --popover-foreground: 45 40% 94%;
+    --popover: 160 38% 14%;
+    --popover-foreground: 43 33% 96%;
 
-    --primary: 160 35% 45%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 43 65% 52%;
+    --primary-foreground: 160 38% 16%;
 
-    --secondary: 30 10% 22%;
-    --secondary-foreground: 45 40% 94%;
+    --secondary: 160 38% 18%;
+    --secondary-foreground: 43 33% 96%;
 
-    --muted: 30 10% 30%;
-    --muted-foreground: 45 30% 70%;
+    --muted: 186 16% 40%;
+    --muted-foreground: 186 16% 70%;
 
-    --accent: 25 60% 55%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 47 83% 77%;
+    --accent-foreground: 160 38% 16%;
 
-    --border: 30 10% 25%;
-    --input: 30 10% 25%;
-    --ring: 160 35% 45%;
+    --border: 160 30% 25%;
+    --input: 160 30% 25%;
+    --ring: 43 65% 52%;
 
-    --sidebar-background: 160 35% 25%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 160 35% 25%;
-    --sidebar-accent: 160 35% 20%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 160 25% 35%;
-    --sidebar-ring: 0 0% 100%;
+    --sidebar-background: 160 38% 12%;
+    --sidebar-foreground: 43 33% 96%;
+    --sidebar-primary: 43 65% 52%;
+    --sidebar-primary-foreground: 160 38% 12%;
+    --sidebar-accent: 160 38% 8%;
+    --sidebar-accent-foreground: 43 65% 52%;
+    --sidebar-border: 43 65% 40%;
+    --sidebar-ring: 43 65% 52%;
   }
 }
 
@@ -121,17 +120,17 @@
 }
 
 @layer components {
+  /* Nav item matches HTML exactly */
   .nav-item {
-    @apply flex items-center gap-3 px-5 py-3 text-sidebar-foreground/80 
-           transition-all duration-200 cursor-pointer rounded-lg mx-2;
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer font-light;
+    transition: 0.3s;
   }
 
-  .nav-item:hover {
-    @apply bg-sidebar-accent text-sidebar-foreground;
-  }
-
+  .nav-item:hover,
   .nav-item.active {
-    @apply bg-sidebar-accent text-sidebar-foreground font-medium;
+    background: hsl(var(--sidebar-accent));
+    color: hsl(var(--amber-glass));
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
   }
 
   .nav-item.disabled {
@@ -139,33 +138,162 @@
   }
 
   .nav-item.disabled:hover {
-    @apply bg-transparent;
+    @apply bg-transparent shadow-none;
+    color: inherit;
   }
 
   .nav-icon {
-    @apply text-xl w-6 text-center;
+    @apply text-base;
   }
 
   .nav-label {
-    @apply text-sm font-sans;
+    @apply text-sm font-light;
   }
 
+  /* Nav section label matches HTML exactly */
   .nav-section-title {
-    @apply text-xs font-sans font-semibold tracking-wider text-sidebar-foreground/50 
-           px-5 py-2 mt-4 uppercase;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: hsl(var(--seine-blue));
+    margin-bottom: 20px;
+    display: block;
   }
 
   .content-card {
-    @apply bg-card rounded-xl p-6 shadow-sm border border-border;
+    @apply bg-card p-8 shadow-sm;
+    border-radius: 30px;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.03);
   }
 
   .day-pill {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
-           bg-primary text-primary-foreground;
+    @apply px-4 py-2 rounded-[20px] text-[13px] cursor-pointer;
+  }
+
+  .day-pill.active {
+    background: hsl(var(--metro-green));
+    color: hsl(var(--amber-glass));
   }
 
   .coming-soon-badge {
-    @apply text-xs px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium;
+    @apply text-xs px-2 py-0.5 rounded-full font-medium;
+    background: rgba(212, 175, 55, 0.2);
+    color: hsl(var(--amber-glass));
+  }
+
+  /* Paper texture background for main stage */
+  .paper-texture {
+    background: linear-gradient(rgba(249, 247, 242, 0.9), rgba(249, 247, 242, 0.9)), 
+                url('https://www.transparenttextures.com/patterns/paper-fibers.png');
+  }
+
+  /* Search container matches HTML */
+  .search-container {
+    @apply bg-white flex items-center;
+    border: 1px solid #ddd;
+    border-radius: 30px;
+    padding: 10px 25px;
+    width: 400px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  }
+
+  .search-container input {
+    @apply border-none outline-none w-full ml-2.5 font-sans bg-transparent;
+  }
+
+  /* Mini map matches HTML */
+  .mini-map {
+    height: 250px;
+    background: #d1d1d1;
+    border-radius: 25px;
+    background-size: cover;
+    border: 4px solid white;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    position: relative;
+  }
+
+  .map-label {
+    position: absolute;
+    bottom: 15px;
+    left: 15px;
+    background: hsl(var(--metro-green));
+    color: hsl(var(--amber-glass));
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+
+  /* Gem card matches HTML */
+  .gem-card {
+    background-image: linear-gradient(45deg, hsl(var(--metro-green)), hsl(var(--metro-green) / 0.8));
+    color: white;
+    padding: 25px;
+    border-radius: 25px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gem-card::before {
+    content: '❦';
+    position: absolute;
+    top: -10px;
+    right: 0;
+    font-size: 80px;
+    opacity: 0.1;
+  }
+
+  /* Button nouveau matches HTML */
+  .btn-nouveau {
+    background: hsl(var(--amber-glass));
+    color: hsl(var(--metro-green));
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: 0.3s;
+  }
+
+  .btn-nouveau:hover {
+    background: hsl(var(--amber-glow));
+    transform: translateY(-2px);
+  }
+
+  /* Event row matches HTML */
+  .event-row {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 30px;
+    position: relative;
+  }
+
+  .event-time {
+    width: 60px;
+    font-weight: 600;
+    font-size: 14px;
+    color: hsl(var(--seine-blue));
+  }
+
+  .event-details {
+    flex: 1;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f4f4f4;
+  }
+
+  .event-details h4 {
+    @apply font-serif text-[22px] mb-1;
+  }
+
+  /* Budget insight card */
+  .insight-card {
+    background: white;
+    border-radius: 25px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.03);
   }
 }
 

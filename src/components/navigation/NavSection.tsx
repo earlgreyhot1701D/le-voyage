@@ -3,13 +3,14 @@ import { ReactNode } from 'react';
 interface NavSectionProps {
   title: string;
   children: ReactNode;
+  className?: string;
 }
 
-export function NavSection({ title, children }: NavSectionProps) {
+export function NavSection({ title, children, className = '' }: NavSectionProps) {
   return (
-    <div className="mb-2">
-      <h3 className="nav-section-title">{title}</h3>
-      <div className="space-y-1">
+    <div className={`nav-group mb-10 ${className}`}>
+      <span className="nav-section-title">{title}</span>
+      <div className="space-y-2">
         {children}
       </div>
     </div>
