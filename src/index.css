@@ -1,96 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Le Voyage Design System - Guimard Theme
+   All colors are HSL values extracted from levoyage-2.html
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Le Voyage Brand Colors */
+    --metro-green: 160 35% 35%;
+    --metro-green-dark: 160 35% 28%;
+    --metro-green-light: 160 25% 45%;
+    --parchment: 45 40% 94%;
+    --warm-cream: 40 35% 91%;
+    --ink: 30 10% 25%;
+    --muted-sage: 150 15% 70%;
+    --accent-copper: 25 60% 50%;
+    --soft-shadow: 0 0% 0%;
+
+    /* Semantic mappings */
+    --background: 45 40% 94%;
+    --foreground: 30 10% 25%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 30 10% 25%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 30 10% 25%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 160 35% 35%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 40 35% 91%;
+    --secondary-foreground: 30 10% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 150 15% 70%;
+    --muted-foreground: 30 10% 40%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 25 60% 50%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 40 20% 85%;
+    --input: 40 20% 85%;
+    --ring: 160 35% 35%;
 
-    --radius: 0.5rem;
+    --radius: 12px;
 
-    --sidebar-background: 0 0% 98%;
+    /* Sidebar specific */
+    --sidebar-background: 160 35% 35%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 160 35% 35%;
+    --sidebar-accent: 160 35% 28%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 160 25% 45%;
+    --sidebar-ring: 0 0% 100%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Layout dimensions */
+    --sidebar-width: 280px;
+    --right-panel-width: 350px;
+    --dashboard-gap: 30px;
+    --content-padding: 30px;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 30 10% 12%;
+    --foreground: 45 40% 94%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 30 10% 18%;
+    --card-foreground: 45 40% 94%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 30 10% 18%;
+    --popover-foreground: 45 40% 94%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 160 35% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 30 10% 22%;
+    --secondary-foreground: 45 40% 94%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 30 10% 30%;
+    --muted-foreground: 45 30% 70%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 25 60% 55%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --border: 30 10% 25%;
+    --input: 30 10% 25%;
+    --ring: 160 35% 45%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 160 35% 25%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 160 35% 25%;
+    --sidebar-accent: 160 35% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 160 25% 35%;
+    --sidebar-ring: 0 0% 100%;
   }
 }
 
@@ -100,6 +112,79 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  .nav-item {
+    @apply flex items-center gap-3 px-5 py-3 text-sidebar-foreground/80 
+           transition-all duration-200 cursor-pointer rounded-lg mx-2;
+  }
+
+  .nav-item:hover {
+    @apply bg-sidebar-accent text-sidebar-foreground;
+  }
+
+  .nav-item.active {
+    @apply bg-sidebar-accent text-sidebar-foreground font-medium;
+  }
+
+  .nav-item.disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .nav-item.disabled:hover {
+    @apply bg-transparent;
+  }
+
+  .nav-icon {
+    @apply text-xl w-6 text-center;
+  }
+
+  .nav-label {
+    @apply text-sm font-sans;
+  }
+
+  .nav-section-title {
+    @apply text-xs font-sans font-semibold tracking-wider text-sidebar-foreground/50 
+           px-5 py-2 mt-4 uppercase;
+  }
+
+  .content-card {
+    @apply bg-card rounded-xl p-6 shadow-sm border border-border;
+  }
+
+  .day-pill {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
+           bg-primary text-primary-foreground;
+  }
+
+  .coming-soon-badge {
+    @apply text-xs px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted));
+    border-radius: 3px;
   }
 }
