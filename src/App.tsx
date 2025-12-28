@@ -2,13 +2,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/common";
+import { FIXTURE_TRIP_ID } from "@/config/constants";
 import Index from "./pages/Index";
-import TripPlannerPage from "./pages/TripPlannerPage";
-import NeighborhoodsPage from "./pages/NeighborhoodsPage";
-import PackingPage from "./pages/PackingPage";
-import DocumentsPage from "./pages/DocumentsPage";
+import TripDetailPage from "./pages/TripDetailPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,11 +20,10 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/planner" element={<TripPlannerPage />} />
-            <Route path="/neighborhoods" element={<NeighborhoodsPage />} />
-            <Route path="/packing" element={<PackingPage />} />
-            <Route path="/documents" element={<DocumentsPage />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="/trips" element={<Index />} />
+            <Route path="/trip/:tripId" element={<TripDetailPage />} />
+            <Route path="/planner" element={<Navigate to={`/trip/${FIXTURE_TRIP_ID}`} replace />} />
+            <Route path="/neighborhoods" element={<Navigate to={`/trip/${FIXTURE_TRIP_ID}?view=neighborhoods`} replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

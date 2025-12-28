@@ -3,10 +3,9 @@ import { Sidebar } from './Sidebar';
 
 interface AppShellProps {
   children: ReactNode;
-  rightPanel?: ReactNode;
 }
 
-export function AppShell({ children, rightPanel }: AppShellProps) {
+export function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* Left Sidebar - 280px with amber border */}
