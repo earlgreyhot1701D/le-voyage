@@ -1,8 +1,8 @@
 import { AppShell } from '@/components/layout';
 import { MainContent } from '@/components/layout';
-import { RightPanel } from '@/components/layout';
 import { Link } from 'react-router-dom';
 import { fixtureTrip } from '@/data/fixtures';
+import { FIXTURE_TRIP_ID } from '@/config/constants';
 
 const statusColors = {
   planning: 'bg-accent/20 text-accent',
@@ -30,7 +30,7 @@ function TripCard() {
 
   return (
     <Link
-      to="/planner"
+      to={`/trip/${FIXTURE_TRIP_ID}`}
       className="content-card block hover:shadow-md transition-shadow cursor-pointer group"
     >
       <div className="flex items-start justify-between mb-3">
@@ -51,71 +51,9 @@ function TripCard() {
   );
 }
 
-function QuickActions() {
-  // Calculate days until trip
-  const startDate = fixtureTrip.start_date 
-    ? new Date(fixtureTrip.start_date) 
-    : null;
-  const today = new Date();
-  const daysUntil = startDate 
-    ? Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    : 0;
-
-  return (
-    <RightPanel title="Quick Actions">
-      <div className="space-y-3">
-        <Link
-          to="/planner"
-          className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
-        >
-          <span className="text-xl">✦</span>
-          <div>
-            <p className="font-medium text-foreground">New Itinerary</p>
-            <p className="text-sm text-muted-foreground">Start planning a trip</p>
-          </div>
-        </Link>
-        <Link
-          to="/neighborhoods"
-          className="flex items-center gap-3 p-3 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
-        >
-          <span className="text-xl">☖</span>
-          <div>
-            <p className="font-medium text-foreground">Explore Areas</p>
-            <p className="text-sm text-muted-foreground">Discover neighborhoods</p>
-          </div>
-        </Link>
-        <Link
-          to="/packing"
-          className="flex items-center gap-3 p-3 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
-        >
-          <span className="text-xl">✕</span>
-          <div>
-            <p className="font-medium text-foreground">Packing Lists</p>
-            <p className="text-sm text-muted-foreground">Prepare for your trip</p>
-          </div>
-        </Link>
-      </div>
-
-      <div className="mt-8 pt-6 border-t border-border">
-        <h3 className="font-serif font-semibold text-card-foreground mb-3">
-          Upcoming
-        </h3>
-        <div className="space-y-2">
-          <div className="p-3 rounded-lg bg-background">
-            <p className="font-medium text-sm">{fixtureTrip.title}</p>
-            <p className="text-xs text-muted-foreground">
-              {daysUntil > 0 ? `Starts in ${daysUntil} days` : 'Trip in progress'}
-            </p>
-          </div>
-        </div>
-      </div>
-    </RightPanel>
-  );
-}
-
 export default function Index() {
   return (
-    <AppShell rightPanel={<QuickActions />}>
+    <AppShell>
       <MainContent
         title="Your Trips"
         subtitle="Plan, organize, and explore your upcoming adventures"
