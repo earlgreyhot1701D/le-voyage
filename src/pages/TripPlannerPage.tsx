@@ -1,90 +1,92 @@
+import { useState } from 'react';
 import { AppShell } from '@/components/layout';
 import { TopBar } from '@/components/layout/TopBar';
+import { 
+  fixtureTrip, 
+  fixtureTripDays, 
+  fixtureItineraryItems, 
+  fixturePlaces,
+  fixtureInsights 
+} from '@/data/fixtures';
+import type { TripDay } from '@/types/trip';
+import type { ItineraryItem } from '@/types/itinerary';
 
-const mockDays = [
-  { id: 'd1', label: 'Mon 12', active: true },
-  { id: 'd2', label: 'Tue 13', active: false },
-  { id: 'd3', label: 'Wed 14', active: false },
-  { id: 'd4', label: 'Thu 15', active: false },
-  { id: 'd5', label: 'Fri 16', active: false },
-];
-
-const mockEvents = [
-  { 
-    id: 'e1', 
-    time: '09:30', 
-    title: 'Petit Déjeuner at Café de Flore',
-    description: 'Historical landmark. Try the "Chocolat Spécial Flore".',
-    badge: '★ 4.5/5 • Iconic'
-  },
-  { 
-    id: 'e2', 
-    time: '11:00', 
-    title: 'Musée d\'Orsay',
-    description: 'Guided tour of the Impressionist level. Entrance via Door C.',
-    ticket: { id: 'LV-99201', label: 'View PDF' }
-  },
-  { 
-    id: 'e3', 
-    time: '13:30', 
-    title: 'Le Train Bleu',
-    description: 'Lunch reservation for 2. Art Nouveau interiors.',
-    isLast: true
-  },
-];
-
-function DaySelector() {
+function DaySelector({ 
+  days, 
+  selectedDayId, 
+  onSelectDay 
+}: { 
+  days: TripDay[]; 
+  selectedDayId: string; 
+  onSelectDay: (id: string) => void;
+}) {
   return (
     <div className="flex gap-5 mb-8 border-b border-border pb-4">
-      {mockDays.map((day) => (
-        <div
+      {days.map((day) => (
+        <button
           key={day.id}
-          className={`day-pill ${day.active ? 'active' : ''}`}
+          onClick={() => onSelectDay(day.id)}
+          className={`day-pill ${day.id === selectedDayId ? 'active' : ''}`}
         >
           {day.label}
-        </div>
+        </button>
       ))}
     </div>
   );
 }
 
-function EventRow({ event }: { event: typeof mockEvents[0] }) {
+function EventRow({ item, isLast }: { item: ItineraryItem; isLast: boolean }) {
+  const place = fixturePlaces.find(p => p.id === item.place_id);
+  
   return (
     <div className="event-row">
-      <div className="event-time">{event.time}</div>
-      <div className={`event-details ${event.isLast ? 'border-none' : ''}`}>
-        <h4>{event.title}</h4>
-        <p className="text-[13px] text-muted-foreground">{event.description}</p>
+      <div className="event-time">{item.time}</div>
+      <div className={`event-details ${isLast ? 'border-none' : ''}`}>
+        <h4>{item.title}</h4>
+        <p className="text-[13px] text-muted-foreground">{item.description}</p>
         
-        {event.badge && (
+        {/* Place rating and badge */}
+        {place && (place.rating || place.badge) && (
           <span 
             className="inline-block mt-2.5 text-[11px]"
             style={{ color: 'hsl(var(--iron-rust))' }}
           >
-            {event.badge}
+            {place.rating && `★ ${place.rating}/5`}
+            {place.rating && place.badge && ' • '}
+            {place.badge}
           </span>
         )}
         
-        {event.ticket && (
+        {/* Ticket info */}
+        {item.ticket && (
           <div 
             className="mt-2.5 p-2.5 rounded-lg text-xs"
             style={{ 
-              background: '#f9f9f9', 
+              background: 'hsl(var(--card))', 
               borderLeft: '3px solid hsl(var(--amber-glass))' 
             }}
           >
-            Ticket ID: {event.ticket.id} • 
-            <a href="#" className="text-muted ml-1 hover:underline">
-              {event.ticket.label}
+            Ticket ID: {item.ticket.id} • 
+            <a href={item.ticket.pdf_url} className="text-muted ml-1 hover:underline">
+              View PDF
             </a>
           </div>
+        )}
+        
+        {/* Attribution */}
+        {item.added_by_display_name && (
+          <p className="text-[11px] text-muted-foreground mt-2 opacity-70">
+            Added by {item.added_by_display_name}
+          </p>
         )}
       </div>
     </div>
   );
 }
 
-function IntelligencePanel() {
+function IntelligencePanel({ neighborhoodFocus }: { neighborhoodFocus: string }) {
+  const insight = fixtureInsights.find(i => i.neighborhood_focus === neighborhoodFocus);
+  
   return (
     <aside className="flex flex-col gap-5">
       {/* Mini Map */}
@@ -93,23 +95,29 @@ function IntelligencePanel() {
       </div>
 
       {/* Gem Card - AI Insight */}
-      <div className="gem-card">
-        <h5 className="font-serif text-xl mb-2.5" style={{ color: 'hsl(var(--amber-glow))' }}>
-          Intelligence: Le Marais
-        </h5>
-        <p className="text-[13px] leading-relaxed opacity-90">
-          The archives suggest the <b>Passage des Panoramas</b> is less crowded at this hour. 
-          It's a 12-minute walk from your current location.
-        </p>
-        <button className="btn-nouveau">Reroute Journey</button>
-      </div>
+      {insight && (
+        <div className="gem-card">
+          <h5 className="font-serif text-xl mb-2.5" style={{ color: 'hsl(var(--amber-glow))' }}>
+            {insight.title}
+          </h5>
+          <p className="text-[13px] leading-relaxed opacity-90">
+            {insight.content}
+          </p>
+          <button className="btn-nouveau">{insight.action_label}</button>
+        </div>
+      )}
 
-      {/* Budget Insight */}
-      <div className="insight-card">
+      {/* Budget Insight - Coming Soon */}
+      <div className="insight-card relative">
+        <div className="absolute inset-0 bg-card/80 backdrop-blur-sm rounded-xl flex items-center justify-center z-10">
+          <span className="text-xs font-medium text-muted-foreground px-3 py-1 bg-muted rounded-full">
+            Coming Soon
+          </span>
+        </div>
         <h5 className="font-serif text-xl mb-4">Budget Insight</h5>
         <div 
           className="h-2.5 rounded mb-2.5 overflow-hidden"
-          style={{ background: '#eee' }}
+          style={{ background: 'hsl(var(--muted))' }}
         >
           <div 
             className="h-full"
@@ -125,9 +133,19 @@ function IntelligencePanel() {
 }
 
 export default function TripPlannerPage() {
+  const [selectedDayId, setSelectedDayId] = useState(fixtureTripDays[0].id);
+  
+  const selectedDay = fixtureTripDays.find(d => d.id === selectedDayId) || fixtureTripDays[0];
+  const dayItems = fixtureItineraryItems.filter(item => item.trip_day_id === selectedDayId);
+  
+  // Format date for TopBar (April 2025)
+  const tripDate = fixtureTrip.start_date 
+    ? new Date(fixtureTrip.start_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : 'April 2025';
+
   return (
     <AppShell>
-      <TopBar />
+      <TopBar date={tripDate} />
       
       {/* Dashboard Grid - matches HTML exactly */}
       <div 
@@ -139,17 +157,31 @@ export default function TripPlannerPage() {
       >
         {/* Itinerary Card */}
         <section className="content-card">
-          <DaySelector />
+          <DaySelector 
+            days={fixtureTripDays} 
+            selectedDayId={selectedDayId}
+            onSelectDay={setSelectedDayId}
+          />
           
-          <h3 className="font-serif text-[32px] mb-8">Monday in the 6th</h3>
+          <h3 className="font-serif text-[32px] mb-8">{selectedDay.title}</h3>
           
-          {mockEvents.map((event) => (
-            <EventRow key={event.id} event={event} />
+          {dayItems.map((item, index) => (
+            <EventRow 
+              key={item.id} 
+              item={item} 
+              isLast={index === dayItems.length - 1}
+            />
           ))}
+          
+          {dayItems.length === 0 && (
+            <p className="text-muted-foreground text-center py-8">
+              No activities planned for this day yet.
+            </p>
+          )}
         </section>
 
         {/* Intelligence Panel */}
-        <IntelligencePanel />
+        <IntelligencePanel neighborhoodFocus={selectedDay.neighborhood_focus || ''} />
       </div>
     </AppShell>
   );

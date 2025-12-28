@@ -17,6 +17,8 @@ export interface TripDay {
   date: string;
   day_number: number;
   title: string | null;
+  label?: string;
+  neighborhood_focus?: string;
 }
 
 export interface TripActivity {
