@@ -31,32 +31,20 @@ export const tripService = {
     return data;
   },
 
-  // Create a new trip and add owner as collaborator
+  // Create a new trip and add owner as collaborator atomically
   async createTrip(trip: Omit<TripInsert, 'id' | 'created_at' | 'updated_at'>): Promise<Trip> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    // Insert trip
-    const { data: newTrip, error: tripError } = await supabase
-      .from('trips')
-      .insert(trip)
-      .select()
-      .single();
-
-    if (tripError) throw tripError;
-
-    // Add owner collaborator
-    const { error: collabError } = await supabase
-      .from('trip_collaborators')
-      .insert({
-        trip_id: newTrip.id,
-        user_id: user.id,
-        role: 'owner',
+    const { data, error } = await supabase
+      .rpc('create_trip_with_owner', {
+        p_title: trip.title,
+        p_destination: trip.destination,
+        p_start_date: trip.start_date || null,
+        p_end_date: trip.end_date || null,
+        p_cover_image_url: trip.cover_image_url || null,
+        p_status: trip.status || 'planning',
       });
 
-    if (collabError) throw collabError;
-
-    return newTrip;
+    if (error) throw error;
+    return data as Trip;
   },
 
   // Update an existing trip

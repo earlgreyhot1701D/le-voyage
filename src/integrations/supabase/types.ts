@@ -381,6 +381,33 @@ export type Database = {
         Args: { _trip_id: string; _user_id: string }
         Returns: boolean
       }
+      create_trip_with_owner: {
+        Args: {
+          p_cover_image_url?: string
+          p_destination: string
+          p_end_date?: string
+          p_start_date?: string
+          p_status?: Database["public"]["Enums"]["trip_status"]
+          p_title: string
+        }
+        Returns: {
+          cover_image_url: string | null
+          created_at: string
+          destination: string
+          end_date: string | null
+          id: string
+          start_date: string | null
+          status: Database["public"]["Enums"]["trip_status"]
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "trips"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_trip_id_from_day: { Args: { _trip_day_id: string }; Returns: string }
       get_trip_id_from_item: { Args: { _item_id: string }; Returns: string }
       has_trip_access: {
