@@ -423,13 +423,13 @@ const ExplorerFilters = forwardRef<HTMLDivElement, ExplorerFiltersProps>(
 );
 ExplorerFilters.displayName = 'ExplorerFilters';
 
-interface AddPlaceFormProps {
+interface ManualAddFormProps {
   tripId: string;
   neighborhoods: string[];
-  placesCount: number;
+  onClose: () => void;
 }
 
-function AddPlaceForm({ tripId, neighborhoods, placesCount }: AddPlaceFormProps) {
+function ManualAddForm({ tripId, neighborhoods, onClose }: ManualAddFormProps) {
   const [name, setName] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const createPlace = useCreatePlace();
@@ -451,20 +451,26 @@ function AddPlaceForm({ tripId, neighborhoods, placesCount }: AddPlaceFormProps)
         longitude: null,
       });
       
+      toast.success(`Added "${name.trim()}" to your trip!`);
       setName('');
       setNeighborhood('');
+      onClose();
     } catch (error) {
       console.error('Failed to add place:', error);
+      toast.error('Failed to add place');
     }
   };
 
   return (
-    <div className="mb-6 p-4 border border-border rounded-xl bg-card">
+    <div className="mt-3 p-4 border border-border rounded-xl bg-muted/30">
       <div className="flex items-center justify-between mb-3">
-        <h4 className="font-serif text-lg">Add a Place</h4>
-        <span className="text-xs text-muted-foreground">
-          {placesCount} place{placesCount !== 1 ? 's' : ''} saved
-        </span>
+        <h4 className="text-sm font-medium">Add Manually</h4>
+        <button 
+          onClick={onClose}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Cancel
+        </button>
       </div>
       <div className="flex gap-3 flex-wrap items-end">
         <div className="flex-1 min-w-[200px]">
@@ -474,16 +480,16 @@ function AddPlaceForm({ tripId, neighborhoods, placesCount }: AddPlaceFormProps)
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-            className="w-full p-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground"
+            className="w-full p-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground text-sm"
           />
         </div>
         <div>
           <select
             value={neighborhood}
             onChange={(e) => setNeighborhood(e.target.value)}
-            className="p-2 rounded-lg border border-border bg-background text-foreground"
+            className="p-2 rounded-lg border border-border bg-background text-foreground text-sm"
           >
-            <option value="">Neighborhood (optional)</option>
+            <option value="">Neighborhood</option>
             {neighborhoods.map(n => (
               <option key={n} value={n}>{n}</option>
             ))}
@@ -492,14 +498,11 @@ function AddPlaceForm({ tripId, neighborhoods, placesCount }: AddPlaceFormProps)
         <button
           onClick={handleSubmit}
           disabled={!name.trim() || createPlace.isPending}
-          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground font-medium hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
         >
           {createPlace.isPending ? 'Adding...' : 'Add'}
         </button>
       </div>
-      <p className="text-xs text-muted-foreground mt-2">
-        Don't know the neighborhood? No problem — add it now, organize later.
-      </p>
     </div>
   );
 }
@@ -517,6 +520,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
   const createPlace = useCreatePlace();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [showManualAdd, setShowManualAdd] = useState(false);
   
   // Google Places search
   const { results: searchResults, isSearching, search, clearResults } = usePlaceSearch();
@@ -545,15 +549,16 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
     setDismissedInsights(prev => [...prev, index]);
   }, []);
   
-  // Debounced search
+  // Debounced search - triggers immediately for Google Places
   const handleSearchChange = useCallback((value: string) => {
     setSearchQuery(value);
+    setShowManualAdd(false);
     
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
     
-    if (value.length >= 3) {
+    if (value.length >= 2) {
       searchTimeoutRef.current = setTimeout(() => {
         // Search with Paris as default location
         search(value, { lat: 48.8566, lng: 2.3522 });
@@ -644,32 +649,31 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
     >
       {/* Main Content */}
       <section className="content-card">
-        <h2 className="font-serif text-[32px] mb-6">Neighborhood Explorer</h2>
-        <p className="text-muted-foreground mb-8">Discover places across Paris neighborhoods</p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="font-serif text-[32px]">Neighborhood Explorer</h2>
+            <p className="text-muted-foreground">
+              {places.length} place{places.length !== 1 ? 's' : ''} saved
+            </p>
+          </div>
+        </div>
         
-        {/* Add Place Form */}
-        <AddPlaceForm 
-          tripId={tripId}
-          neighborhoods={neighborhoods}
-          placesCount={places.length}
-        />
-        
-        {/* Search Bar with Google Places */}
+        {/* Search Bar - Primary Action */}
         <div className="mb-6">
           <div className="relative">
             <input
               type="text"
-              placeholder="Search Google Places or filter your saved places..."
+              placeholder="Search places to add (e.g., Louvre Museum, Café de Flore...)"
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full p-4 pl-12 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full p-4 pl-12 rounded-xl border-2 border-primary/30 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-              ⌕
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary">
+              🔍
             </span>
             {searchQuery && (
               <button
-                onClick={() => { setSearchQuery(''); clearResults(); }}
+                onClick={() => { setSearchQuery(''); clearResults(); setShowManualAdd(false); }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 ✕
@@ -684,11 +688,37 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
               onClose={clearResults}
             />
           </div>
-          {searchQuery && searchResults.length === 0 && !isSearching && (
-            <p className="text-sm text-muted-foreground mt-2">
-              Found {filteredPlaces.length} saved place{filteredPlaces.length !== 1 ? 's' : ''}
-              {searchQuery.length >= 3 && ' • Type 3+ characters to search Google Places'}
+          
+          {/* Status and manual add option */}
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-sm text-muted-foreground">
+              {isSearching ? (
+                'Searching Google Places...'
+              ) : searchQuery.length >= 2 && searchResults.length === 0 ? (
+                `No Google Places found for "${searchQuery}"`
+              ) : searchQuery.length > 0 && searchQuery.length < 2 ? (
+                'Type 2+ characters to search'
+              ) : (
+                'Start typing to search Google Places'
+              )}
             </p>
+            {!showManualAdd && (
+              <button
+                onClick={() => setShowManualAdd(true)}
+                className="text-sm text-primary hover:text-primary/80 transition-colors"
+              >
+                Can't find it? Add manually
+              </button>
+            )}
+          </div>
+          
+          {/* Manual Add Form - Secondary */}
+          {showManualAdd && (
+            <ManualAddForm
+              tripId={tripId}
+              neighborhoods={neighborhoods}
+              onClose={() => setShowManualAdd(false)}
+            />
           )}
         </div>
 
