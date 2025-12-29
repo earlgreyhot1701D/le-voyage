@@ -5,6 +5,8 @@ import { TopBar } from '@/components/layout/TopBar';
 import { RightPanel } from '@/components/layout/RightPanel';
 import { useTrip, useTripDays, useItineraryItems, useInsights } from '@/hooks/useTrips';
 import { usePlaces, useCreatePlace, useDeletePlace } from '@/hooks/usePlaces';
+import { useTripPermissions } from '@/hooks/useTripPermissions';
+import { EditTripModal } from '@/components/trips/EditTripModal';
 import type { Tables } from '@/integrations/supabase/types';
 
 type TripDay = Tables<'trip_days'>;
@@ -627,6 +629,10 @@ export default function TripDetailPage() {
   const view = searchParams.get('view');
   
   const { data: trip, isLoading } = useTrip(tripId);
+  const { canEdit } = useTripPermissions(tripId);
+  
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [collaboratorsModalOpen, setCollaboratorsModalOpen] = useState(false);
   
   if (isLoading) {
     return (
@@ -654,12 +660,24 @@ export default function TripDetailPage() {
 
   return (
     <AppShell>
-      <TopBar date={tripDate} />
+      <TopBar 
+        date={tripDate} 
+        canEdit={canEdit}
+        onEditClick={() => setEditModalOpen(true)}
+        onCollaboratorsClick={() => setCollaboratorsModalOpen(true)}
+      />
       
       {view === 'neighborhoods' 
         ? <NeighborhoodsView tripId={trip.id} /> 
         : <ItineraryView tripId={trip.id} />
       }
+      
+      {/* Edit Trip Modal */}
+      <EditTripModal 
+        trip={trip} 
+        open={editModalOpen} 
+        onOpenChange={setEditModalOpen} 
+      />
     </AppShell>
   );
 }
