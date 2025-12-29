@@ -4,9 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/common";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FIXTURE_TRIP_ID } from "@/config/constants";
 import Index from "./pages/Index";
 import TripDetailPage from "./pages/TripDetailPage";
+import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,9 +21,10 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/trips" element={<Index />} />
-            <Route path="/trip/:tripId" element={<TripDetailPage />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/trips" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/trip/:tripId" element={<ProtectedRoute><TripDetailPage /></ProtectedRoute>} />
             <Route path="/planner" element={<Navigate to={`/trip/${FIXTURE_TRIP_ID}`} replace />} />
             <Route path="/neighborhoods" element={<Navigate to={`/trip/${FIXTURE_TRIP_ID}?view=neighborhoods`} replace />} />
             <Route path="*" element={<NotFound />} />
