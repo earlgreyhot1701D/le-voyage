@@ -321,14 +321,19 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              window.open(getSearchUrl(), '_blank', 'noopener,noreferrer');
+              const url = getSearchUrl();
+              const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+              // Fallback for popup blockers
+              if (!newWindow) {
+                window.location.href = url;
+              }
             }}
             className="font-serif text-xl font-semibold text-card-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5 group/link text-left"
             title="Search for more info"
           >
             {place.name}
             <svg 
-              className="w-4 h-4 opacity-0 group-hover/link:opacity-100 transition-opacity" 
+              className="w-4 h-4 opacity-70 group-hover/link:opacity-100 transition-opacity text-muted-foreground" 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24"
