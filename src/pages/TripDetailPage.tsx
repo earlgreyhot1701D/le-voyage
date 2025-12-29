@@ -318,12 +318,12 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
       
       <div className="flex items-start justify-between mb-3">
         <div>
-          <a 
-            href={getSearchUrl()}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="font-serif text-xl font-semibold text-card-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5 group/link"
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(getSearchUrl(), '_blank', 'noopener,noreferrer');
+            }}
+            className="font-serif text-xl font-semibold text-card-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5 group/link text-left"
             title="Search for more info"
           >
             {place.name}
@@ -335,7 +335,7 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-          </a>
+          </button>
           <p className="text-sm text-muted-foreground">{place.neighborhood_name}</p>
         </div>
         {place.rating && (
@@ -594,7 +594,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
   // New filter states
   const [selectedArrondissement, setSelectedArrondissement] = useState('All');
   const [minRating, setMinRating] = useState(0);
-  const [showMap, setShowMap] = useState(false);
+  const [showMap, setShowMap] = useState(true);
   
   // Google Places search
   const { results: searchResults, isSearching, search, clearResults } = usePlaceSearch();
