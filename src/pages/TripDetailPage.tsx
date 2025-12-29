@@ -1,4 +1,4 @@
-import { useState, forwardRef } from 'react';
+import { useState, forwardRef, useCallback } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout';
 import { TopBar } from '@/components/layout/TopBar';
@@ -6,7 +6,9 @@ import { RightPanel } from '@/components/layout/RightPanel';
 import { useTrip, useTripDays, useItineraryItems, useInsights } from '@/hooks/useTrips';
 import { usePlaces, useCreatePlace, useDeletePlace } from '@/hooks/usePlaces';
 import { useTripPermissions } from '@/hooks/useTripPermissions';
+import { useAIInsights } from '@/hooks/useAIInsights';
 import { EditTripModal, CollaboratorsModal } from '@/components/trips';
+import { InsightsPanel } from '@/components/insights';
 import type { Tables } from '@/integrations/supabase/types';
 
 type TripDay = Tables<'trip_days'>;
@@ -476,11 +478,36 @@ function AddPlaceForm({ tripId, neighborhoods, placesCount }: AddPlaceFormProps)
   );
 }
 
-function NeighborhoodsView({ tripId }: { tripId: string }) {
+interface NeighborhoodsViewProps {
+  tripId: string;
+  tripTitle?: string;
+  destination?: string;
+}
+
+function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsViewProps) {
   const { data: places = [], isLoading } = usePlaces(tripId);
   const deletePlace = useDeletePlace(tripId);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  
+  // AI Insights
+  const { 
+    insights: aiInsights, 
+    isLoading: aiLoading, 
+    generateInsights 
+  } = useAIInsights({ tripId, tripTitle, destination });
+  
+  const [dismissedInsights, setDismissedInsights] = useState<number[]>([]);
+  
+  const visibleInsights = aiInsights.filter((_, i) => !dismissedInsights.includes(i));
+  
+  const handleRefreshInsights = useCallback(() => {
+    generateInsights('All Areas', places);
+  }, [generateInsights, places]);
+  
+  const handleDismissInsight = useCallback((index: number) => {
+    setDismissedInsights(prev => [...prev, index]);
+  }, []);
   
   // Get unique neighborhoods from places
   const neighborhoods = [...new Set(places.map(p => p.neighborhood_name).filter(Boolean))] as string[];
@@ -611,12 +638,25 @@ function NeighborhoodsView({ tripId }: { tripId: string }) {
         )}
       </section>
 
-      {/* Filters Panel */}
-      <ExplorerFilters 
-        selectedCategories={selectedCategories}
-        onCategoryChange={handleCategoryChange}
-        onClearFilters={handleClearFilters}
-      />
+      {/* Right Panel with AI Insights and Filters */}
+      <aside className="flex flex-col gap-6">
+        {/* AI Insights */}
+        <InsightsPanel
+          insights={visibleInsights}
+          isLoading={aiLoading}
+          onRefresh={handleRefreshInsights}
+          onDismiss={handleDismissInsight}
+          neighborhoodFocus="All Areas"
+          placesCount={places.length}
+        />
+        
+        {/* Filters */}
+        <ExplorerFilters 
+          selectedCategories={selectedCategories}
+          onCategoryChange={handleCategoryChange}
+          onClearFilters={handleClearFilters}
+        />
+      </aside>
     </div>
   );
 }
@@ -668,7 +708,7 @@ export default function TripDetailPage() {
       />
       
       {view === 'neighborhoods' 
-        ? <NeighborhoodsView tripId={trip.id} /> 
+        ? <NeighborhoodsView tripId={trip.id} tripTitle={trip.title} destination={trip.destination} /> 
         : <ItineraryView tripId={trip.id} />
       }
       
