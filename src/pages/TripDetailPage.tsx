@@ -306,13 +306,13 @@ function AddPlaceForm({ onAddPlace }: { onAddPlace: (place: Place) => void }) {
   const neighborhoods = [...new Set(fixturePlaces.map(p => p.neighborhood_name).filter(Boolean))] as string[];
 
   const handleSubmit = () => {
-    if (!name.trim() || !neighborhood) return;
+    if (!name.trim()) return;
 
     const newPlace: Place = {
       id: `place-user-${Date.now()}`,
       name: name.trim(),
       arrondissement: null,
-      neighborhood_name: neighborhood,
+      neighborhood_name: neighborhood || null, // Allow empty - goes to "To Sort" group
       category: 'Other',
       rating: null,
       badge: null,
@@ -321,46 +321,66 @@ function AddPlaceForm({ onAddPlace }: { onAddPlace: (place: Place) => void }) {
 
     onAddPlace(newPlace);
     setName('');
+    setNeighborhood('');
   };
 
   return (
     <div className="mb-6 p-4 border border-border rounded-xl bg-card">
       <h4 className="font-serif text-lg mb-3">Add a Place</h4>
-      <div className="flex gap-3 flex-wrap">
-        <input
-          type="text"
-          placeholder="Place name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="flex-1 min-w-[200px] p-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground"
-        />
-        <select
-          value={neighborhood}
-          onChange={(e) => setNeighborhood(e.target.value)}
-          className="p-2 rounded-lg border border-border bg-background text-foreground"
-        >
-          <option value="">Select neighborhood</option>
-          {neighborhoods.map(n => (
-            <option key={n} value={n}>{n}</option>
-          ))}
-        </select>
+      <div className="flex gap-3 flex-wrap items-end">
+        <div className="flex-1 min-w-[200px]">
+          <input
+            type="text"
+            placeholder="Place name (e.g., Café de Flore)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+            className="w-full p-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground"
+          />
+        </div>
+        <div>
+          <select
+            value={neighborhood}
+            onChange={(e) => setNeighborhood(e.target.value)}
+            className="p-2 rounded-lg border border-border bg-background text-foreground"
+          >
+            <option value="">Neighborhood (optional)</option>
+            {neighborhoods.map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={handleSubmit}
-          disabled={!name.trim() || !neighborhood}
+          disabled={!name.trim()}
           className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           Add
         </button>
       </div>
+      <p className="text-xs text-muted-foreground mt-2">
+        Don't know the neighborhood? No problem — add it now, organize later.
+      </p>
     </div>
   );
 }
 
 function NeighborhoodsView() {
   const [addedPlaces, setAddedPlaces] = useState<Place[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const allPlaces = [...fixturePlaces, ...addedPlaces];
-  const groupedPlaces = groupPlacesByArea(allPlaces);
+  
+  // Filter places by search query
+  const filteredPlaces = searchQuery.trim()
+    ? allPlaces.filter(place => 
+        place.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        place.neighborhood_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        place.category.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : allPlaces;
+  
+  const groupedPlaces = groupPlacesByArea(filteredPlaces);
 
   const handleAddPlace = (place: Place) => {
     setAddedPlaces(prev => [...prev, place]);
@@ -387,28 +407,49 @@ function NeighborhoodsView() {
           <div className="relative">
             <input
               type="text"
-              placeholder="Search places..."
+              placeholder="Search places, neighborhoods, or categories..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full p-4 pl-12 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
               ⌕
             </span>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
+            )}
           </div>
+          {searchQuery && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Found {filteredPlaces.length} place{filteredPlaces.length !== 1 ? 's' : ''}
+            </p>
+          )}
         </div>
 
         {/* Places grouped by area */}
-        {Object.entries(groupedPlaces).map(([areaName, places]) => (
-          <div key={areaName} className="mb-8">
-            <h3 className="font-serif text-xl font-semibold mb-4 text-foreground">
-              {areaName}
-            </h3>
-            <div className="grid gap-4 md:grid-cols-2">
-              {places.map((place) => (
-                <PlaceCard key={place.id} place={place} />
-              ))}
-            </div>
+        {Object.entries(groupedPlaces).length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <p>No places found matching "{searchQuery}"</p>
           </div>
-        ))}
+        ) : (
+          Object.entries(groupedPlaces).map(([areaName, places]) => (
+            <div key={areaName} className="mb-8">
+              <h3 className="font-serif text-xl font-semibold mb-4 text-foreground">
+                {areaName}
+              </h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                {places.map((place) => (
+                  <PlaceCard key={place.id} place={place} />
+                ))}
+              </div>
+            </div>
+          ))
+        )}
       </section>
 
       {/* Filters Panel */}
