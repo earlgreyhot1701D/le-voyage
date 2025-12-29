@@ -9,11 +9,11 @@ export function useCollaborators(tripId: string | undefined) {
   });
 }
 
-export function useInvitations(tripId: string | undefined) {
+export function useInvitations(tripId: string | undefined, enabled: boolean = true) {
   return useQuery({
     queryKey: ['invitations', tripId],
     queryFn: () => tripService.getInvitations(tripId!),
-    enabled: !!tripId,
+    enabled: !!tripId && enabled,
   });
 }
 

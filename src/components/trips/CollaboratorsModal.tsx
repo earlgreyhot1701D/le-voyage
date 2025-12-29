@@ -39,10 +39,11 @@ interface CollaboratorsModalProps {
 
 export function CollaboratorsModal({ tripId, open, onOpenChange }: CollaboratorsModalProps) {
   const { user } = useAuth();
-  const { isOwner } = useTripPermissions(tripId);
+  const { isOwner, isLoading: permissionsLoading } = useTripPermissions(tripId);
   
   const { data: collaborators = [], isLoading: collabLoading } = useCollaborators(tripId);
-  const { data: invitations = [], isLoading: inviteLoading } = useInvitations(tripId);
+  // Only fetch invitations when we know the user is the owner (prevents 403 errors)
+  const { data: invitations = [], isLoading: inviteLoading } = useInvitations(tripId, isOwner && !permissionsLoading);
   
   const inviteCollaborator = useInviteCollaborator();
   const removeInvitation = useRemoveInvitation();
@@ -231,10 +232,10 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
                         </Button>
                       </>
                     ) : (
-                      <Badge variant={getRoleBadgeVariant(collab.role)} className="gap-1">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary text-primary-foreground">
                         {getRoleIcon(collab.role)}
                         {collab.role}
-                      </Badge>
+                      </span>
                     )}
                   </div>
                 </div>
