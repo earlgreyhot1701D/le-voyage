@@ -9,6 +9,7 @@ import { FIXTURE_TRIP_ID } from "@/config/constants";
 import Index from "./pages/Index";
 import TripDetailPage from "./pages/TripDetailPage";
 import AuthPage from "./pages/AuthPage";
+import AcceptInvitePage from "./pages/AcceptInvitePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/trips" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/trip/:tripId" element={<ProtectedRoute><TripDetailPage /></ProtectedRoute>} />
+            <Route path="/invite/:token" element={<ProtectedRoute><AcceptInvitePage /></ProtectedRoute>} />
             <Route path="/planner" element={<Navigate to={`/trip/${FIXTURE_TRIP_ID}`} replace />} />
             <Route path="/neighborhoods" element={<Navigate to={`/trip/${FIXTURE_TRIP_ID}?view=neighborhoods`} replace />} />
             <Route path="*" element={<NotFound />} />
