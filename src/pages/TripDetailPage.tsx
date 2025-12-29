@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout';
 import { TopBar } from '@/components/layout/TopBar';
@@ -201,9 +201,9 @@ function groupPlacesByArea(places: Place[]) {
   return groups;
 }
 
-function PlaceCard({ place }: { place: Place }) {
+const PlaceCard = forwardRef<HTMLDivElement, { place: Place }>(({ place }, ref) => {
   return (
-    <div className="content-card hover:shadow-md transition-shadow cursor-pointer group">
+    <div ref={ref} className="content-card hover:shadow-md transition-shadow cursor-pointer group">
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="font-serif text-xl font-semibold text-card-foreground group-hover:text-primary transition-colors">
@@ -237,62 +237,66 @@ function PlaceCard({ place }: { place: Place }) {
       </div>
     </div>
   );
-}
+});
+PlaceCard.displayName = 'PlaceCard';
 
-function ExplorerFilters() {
+const ExplorerFilters = forwardRef<HTMLDivElement, object>((_, ref) => {
   return (
-    <RightPanel title="Filters">
-      <div className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium mb-2">Arrondissement</label>
-          <select className="w-full p-2 rounded-lg border border-border bg-background text-foreground">
-            <option>All</option>
-            <option>4th</option>
-            <option>6th</option>
-            <option>7th</option>
-            <option>12th</option>
-            <option>18th</option>
-          </select>
-        </div>
+    <div ref={ref}>
+      <RightPanel title="Filters">
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">Arrondissement</label>
+            <select className="w-full p-2 rounded-lg border border-border bg-background text-foreground">
+              <option>All</option>
+              <option>4th</option>
+              <option>6th</option>
+              <option>7th</option>
+              <option>12th</option>
+              <option>18th</option>
+            </select>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-2">Category</label>
-          <div className="space-y-2">
-            {['Food and Drink', 'Museum', 'Attraction', 'Experience'].map((cat) => (
-              <label key={cat} className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="rounded border-border" />
-                <span className="text-sm">{cat}</span>
-              </label>
-            ))}
+          <div>
+            <label className="block text-sm font-medium mb-2">Category</label>
+            <div className="space-y-2">
+              {['Food and Drink', 'Museum', 'Attraction', 'Experience'].map((cat) => (
+                <label key={cat} className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="rounded border-border" />
+                  <span className="text-sm">{cat}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Rating</label>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.5"
+              defaultValue="0"
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground mt-1">
+              <span>Any</span>
+              <span>5 Stars</span>
+            </div>
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-2">Rating</label>
-          <input
-            type="range"
-            min="0"
-            max="5"
-            step="0.5"
-            defaultValue="0"
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs text-muted-foreground mt-1">
-            <span>Any</span>
-            <span>5 Stars</span>
+        <div className="mt-6 pt-6 border-t border-border">
+          <h3 className="font-serif font-semibold mb-3">AI Insights</h3>
+          <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+            <p>AI-powered neighborhood insights coming in Phase 2.</p>
           </div>
         </div>
-      </div>
-
-      <div className="mt-6 pt-6 border-t border-border">
-        <h3 className="font-serif font-semibold mb-3">AI Insights</h3>
-        <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-          <p>AI-powered neighborhood insights coming in Phase 2.</p>
-        </div>
-      </div>
-    </RightPanel>
+      </RightPanel>
+    </div>
   );
-}
+});
+ExplorerFilters.displayName = 'ExplorerFilters';
 
 function NeighborhoodsView() {
   const groupedPlaces = groupPlacesByArea(fixturePlaces);
