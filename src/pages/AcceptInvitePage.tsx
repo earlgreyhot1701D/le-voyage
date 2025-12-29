@@ -44,9 +44,14 @@ export default function AcceptInvitePage() {
         }, 1500);
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
+      const isEmailMismatch = errorMessage.includes('different email address');
+      
       toast({
-        title: 'Failed to accept invitation',
-        description: error instanceof Error ? error.message : 'Something went wrong',
+        title: isEmailMismatch ? 'Wrong account' : 'Failed to accept invitation',
+        description: isEmailMismatch 
+          ? 'This invitation was sent to a different email. Please log in with the correct account.' 
+          : errorMessage,
         variant: 'destructive',
       });
     }

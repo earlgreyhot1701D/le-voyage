@@ -1,10 +1,34 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Allowed origins for CORS
+const ALLOWED_ORIGIN_PATTERNS = [
+  /^https:\/\/.*\.lovable\.app$/,
+  /^https:\/\/.*\.lovableproject\.com$/,
+  /^https:\/\/.*\.supabase\.co$/,
+  /^http:\/\/localhost(:\d+)?$/,
+  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+];
+
+function getAllowedOrigin(requestOrigin: string | null): string | null {
+  if (!requestOrigin) return null;
+  
+  for (const pattern of ALLOWED_ORIGIN_PATTERNS) {
+    if (pattern.test(requestOrigin)) {
+      return requestOrigin;
+    }
+  }
+  return null;
+}
+
+function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
+  const allowedOrigin = getAllowedOrigin(requestOrigin);
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin || '',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 interface Place {
   id: string;
@@ -24,6 +48,15 @@ interface GenerateInsightsRequest {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
+  // Reject requests from non-allowed origins
+  if (!corsHeaders['Access-Control-Allow-Origin']) {
+    console.warn(`[generate-insights] Rejected request from origin: ${origin}`);
+    return new Response('Forbidden', { status: 403 });
+  }
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -33,13 +66,24 @@ serve(async (req) => {
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicApiKey) {
       console.error('ANTHROPIC_API_KEY not configured');
-      throw new Error('AI service not configured');
+      return new Response(
+        JSON.stringify({ error: 'Service temporarily unavailable' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const { tripId, neighborhoodFocus, places, tripTitle, destination }: GenerateInsightsRequest = await req.json();
+    const body = await req.json();
+    const { tripId, neighborhoodFocus, places, tripTitle, destination }: GenerateInsightsRequest = body;
     
-    console.log(`Generating insights for trip ${tripId}, neighborhood: ${neighborhoodFocus}`);
-    console.log(`Places count: ${places.length}`);
+    // Input validation
+    if (!tripId || typeof tripId !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[generate-insights] Trip ${tripId}, neighborhood: ${neighborhoodFocus}, places: ${places?.length || 0}`);
 
     if (!places || places.length === 0) {
       return new Response(
@@ -89,7 +133,7 @@ Based on these places, provide 1-3 helpful insights about:
 
 Remember: Only reference places they've already saved. Be helpful, not prescriptive.`;
 
-    console.log('Calling Claude API...');
+    console.log('[generate-insights] Calling Claude API...');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -113,12 +157,15 @@ Remember: Only reference places they've already saved. Be helpful, not prescript
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Claude API error:', response.status, errorText);
-      throw new Error(`Claude API error: ${response.status}`);
+      console.error('[generate-insights] Claude API error:', response.status, errorText);
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate insights' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const data = await response.json();
-    console.log('Claude response received');
+    console.log('[generate-insights] Claude response received');
 
     // Extract the text content
     const textContent = data.content?.find((c: { type: string }) => c.type === 'text')?.text || '[]';
@@ -132,7 +179,7 @@ Remember: Only reference places they've already saved. Be helpful, not prescript
         insights = JSON.parse(jsonMatch[0]);
       }
     } catch (parseError) {
-      console.error('Failed to parse insights JSON:', parseError);
+      console.error('[generate-insights] Failed to parse insights JSON:', parseError);
       // Fallback: create a single insight from the text
       insights = [{
         title: 'Travel Tip',
@@ -149,7 +196,7 @@ Remember: Only reference places they've already saved. Be helpful, not prescript
       neighborhood_focus: neighborhoodFocus,
     }));
 
-    console.log(`Generated ${insights.length} insights`);
+    console.log(`[generate-insights] Generated ${insights.length} insights`);
 
     return new Response(
       JSON.stringify({ insights }),
@@ -157,14 +204,10 @@ Remember: Only reference places they've already saved. Be helpful, not prescript
     );
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to generate insights';
-    console.error('Error generating insights:', errorMessage);
+    console.error('[generate-insights] Error:', error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ error: 'An unexpected error occurred' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

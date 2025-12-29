@@ -1,9 +1,33 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Allowed origins for CORS
+const ALLOWED_ORIGIN_PATTERNS = [
+  /^https:\/\/.*\.lovable\.app$/,
+  /^https:\/\/.*\.lovableproject\.com$/,
+  /^https:\/\/.*\.supabase\.co$/,
+  /^http:\/\/localhost(:\d+)?$/,
+  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+];
+
+function getAllowedOrigin(requestOrigin: string | null): string | null {
+  if (!requestOrigin) return null;
+  
+  for (const pattern of ALLOWED_ORIGIN_PATTERNS) {
+    if (pattern.test(requestOrigin)) {
+      return requestOrigin;
+    }
+  }
+  return null;
+}
+
+function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
+  const allowedOrigin = getAllowedOrigin(requestOrigin);
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin || '',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 interface PlaceSearchRequest {
   query: string;
@@ -23,6 +47,15 @@ interface PlaceResult {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
+  // Reject requests from non-allowed origins
+  if (!corsHeaders['Access-Control-Allow-Origin']) {
+    console.warn(`[search-places] Rejected request from origin: ${origin}`);
+    return new Response('Forbidden', { status: 403 });
+  }
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -31,20 +64,28 @@ serve(async (req) => {
   try {
     const apiKey = Deno.env.get('GOOGLE_PLACES_API_KEY');
     if (!apiKey) {
-      console.error('GOOGLE_PLACES_API_KEY not configured');
-      throw new Error('Google Places API key not configured');
+      console.error('[search-places] GOOGLE_PLACES_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ error: 'Service temporarily unavailable' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const { query, location } = await req.json() as PlaceSearchRequest;
+    const body = await req.json();
+    const { query, location } = body as PlaceSearchRequest;
     
-    if (!query || query.trim().length === 0) {
+    // Input validation
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
       return new Response(
         JSON.stringify({ error: 'Query is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[search-places] Searching for: "${query}" near ${location?.lat}, ${location?.lng}`);
+    // Sanitize and limit query length
+    const sanitizedQuery = query.trim().slice(0, 200);
+
+    console.log(`[search-places] Searching for: "${sanitizedQuery}" near ${location?.lat}, ${location?.lng}`);
 
     // Default to Paris if no location provided
     const searchLat = location?.lat || 48.8566;
@@ -52,7 +93,7 @@ serve(async (req) => {
 
     // Build the Text Search URL
     const url = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
-    url.searchParams.set('query', query);
+    url.searchParams.set('query', sanitizedQuery);
     url.searchParams.set('location', `${searchLat},${searchLng}`);
     url.searchParams.set('radius', '10000'); // 10km radius
     url.searchParams.set('key', apiKey);
@@ -64,7 +105,10 @@ serve(async (req) => {
 
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
       console.error(`[search-places] Google API error: ${data.status}`, data.error_message);
-      throw new Error(data.error_message || `Google Places API error: ${data.status}`);
+      return new Response(
+        JSON.stringify({ error: 'Failed to search places' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log(`[search-places] Found ${data.results?.length || 0} results`);
@@ -96,9 +140,8 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('[search-places] Error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to search places';
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: 'An unexpected error occurred' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
