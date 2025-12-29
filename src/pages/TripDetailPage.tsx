@@ -298,8 +298,73 @@ const ExplorerFilters = forwardRef<HTMLDivElement, object>((_, ref) => {
 });
 ExplorerFilters.displayName = 'ExplorerFilters';
 
+function AddPlaceForm({ onAddPlace }: { onAddPlace: (place: Place) => void }) {
+  const [name, setName] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+
+  // Get unique neighborhoods from existing places
+  const neighborhoods = [...new Set(fixturePlaces.map(p => p.neighborhood_name).filter(Boolean))] as string[];
+
+  const handleSubmit = () => {
+    if (!name.trim() || !neighborhood) return;
+
+    const newPlace: Place = {
+      id: `place-user-${Date.now()}`,
+      name: name.trim(),
+      arrondissement: null,
+      neighborhood_name: neighborhood,
+      category: 'Other',
+      rating: null,
+      badge: null,
+      area_id: null,
+    };
+
+    onAddPlace(newPlace);
+    setName('');
+  };
+
+  return (
+    <div className="mb-6 p-4 border border-border rounded-xl bg-card">
+      <h4 className="font-serif text-lg mb-3">Add a Place</h4>
+      <div className="flex gap-3 flex-wrap">
+        <input
+          type="text"
+          placeholder="Place name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="flex-1 min-w-[200px] p-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground"
+        />
+        <select
+          value={neighborhood}
+          onChange={(e) => setNeighborhood(e.target.value)}
+          className="p-2 rounded-lg border border-border bg-background text-foreground"
+        >
+          <option value="">Select neighborhood</option>
+          {neighborhoods.map(n => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
+        <button
+          onClick={handleSubmit}
+          disabled={!name.trim() || !neighborhood}
+          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function NeighborhoodsView() {
-  const groupedPlaces = groupPlacesByArea(fixturePlaces);
+  const [addedPlaces, setAddedPlaces] = useState<Place[]>([]);
+  
+  const allPlaces = [...fixturePlaces, ...addedPlaces];
+  const groupedPlaces = groupPlacesByArea(allPlaces);
+
+  const handleAddPlace = (place: Place) => {
+    setAddedPlaces(prev => [...prev, place]);
+  };
   
   return (
     <div 
@@ -313,6 +378,9 @@ function NeighborhoodsView() {
       <section className="content-card">
         <h2 className="font-serif text-[32px] mb-6">Neighborhood Explorer</h2>
         <p className="text-muted-foreground mb-8">Discover places across Paris neighborhoods</p>
+        
+        {/* Add Place Form */}
+        <AddPlaceForm onAddPlace={handleAddPlace} />
         
         {/* Search Bar */}
         <div className="mb-6">
