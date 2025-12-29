@@ -3,13 +3,13 @@
 
 export const ENV = {
   // Feature flags
-  USE_MOCK_DATA: true,
+  USE_MOCK_DATA: true, // Will switch to false once DB is populated
   ENABLE_AI: false,
   ENABLE_MAPS: false,
   
-  // API endpoints (stubbed in Phase 0)
-  SUPABASE_URL: '',
-  SUPABASE_ANON_KEY: '',
+  // Supabase configuration
+  SUPABASE_URL: 'https://ixhdadzkztjcdqridqha.supabase.co',
+  SUPABASE_ANON_KEY: 'sb_publishable_rxzm96plykC5aXOmwQyE5g_If2NzeH3',
   MAPBOX_TOKEN: '',
   
   // App configuration
