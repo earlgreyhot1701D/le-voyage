@@ -261,62 +261,89 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove 
 });
 PlaceCard.displayName = 'PlaceCard';
 
-const ExplorerFilters = forwardRef<HTMLDivElement, object>((_, ref) => {
-  return (
-    <div ref={ref}>
-      <RightPanel title="Filters">
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium mb-2">Arrondissement</label>
-            <select className="w-full p-2 rounded-lg border border-border bg-background text-foreground">
-              <option>All</option>
-              <option>4th</option>
-              <option>6th</option>
-              <option>7th</option>
-              <option>12th</option>
-              <option>18th</option>
-            </select>
-          </div>
+const CATEGORIES = ['Food and Drink', 'Museum', 'Attraction', 'Experience'] as const;
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Category</label>
-            <div className="space-y-2">
-              {['Food and Drink', 'Museum', 'Attraction', 'Experience'].map((cat) => (
-                <label key={cat} className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="rounded border-border" />
-                  <span className="text-sm">{cat}</span>
-                </label>
-              ))}
+interface ExplorerFiltersProps {
+  selectedCategories: string[];
+  onCategoryChange: (category: string) => void;
+  onClearFilters: () => void;
+}
+
+const ExplorerFilters = forwardRef<HTMLDivElement, ExplorerFiltersProps>(
+  ({ selectedCategories, onCategoryChange, onClearFilters }, ref) => {
+    const hasActiveFilters = selectedCategories.length > 0;
+    
+    return (
+      <div ref={ref}>
+        <RightPanel title="Filters">
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium mb-2">Arrondissement</label>
+              <select className="w-full p-2 rounded-lg border border-border bg-background text-foreground">
+                <option>All</option>
+                <option>4th</option>
+                <option>6th</option>
+                <option>7th</option>
+                <option>12th</option>
+                <option>18th</option>
+              </select>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium">Category</label>
+                {hasActiveFilters && (
+                  <button
+                    onClick={onClearFilters}
+                    className="text-xs text-primary hover:text-primary/80 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2">
+                {CATEGORIES.map((cat) => (
+                  <label key={cat} className="flex items-center gap-2 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedCategories.includes(cat)}
+                      onChange={() => onCategoryChange(cat)}
+                      className="rounded border-border accent-primary" 
+                    />
+                    <span className="text-sm group-hover:text-primary transition-colors">{cat}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Rating</label>
+              <input
+                type="range"
+                min="0"
+                max="5"
+                step="0.5"
+                defaultValue="0"
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>Any</span>
+                <span>5 Stars</span>
+              </div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Rating</label>
-            <input
-              type="range"
-              min="0"
-              max="5"
-              step="0.5"
-              defaultValue="0"
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>Any</span>
-              <span>5 Stars</span>
+          <div className="mt-6 pt-6 border-t border-border">
+            <h3 className="font-serif font-semibold mb-3">AI Insights</h3>
+            <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+              <p>AI-powered neighborhood insights coming in Phase 2.</p>
             </div>
           </div>
-        </div>
-
-        <div className="mt-6 pt-6 border-t border-border">
-          <h3 className="font-serif font-semibold mb-3">AI Insights</h3>
-          <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-            <p>AI-powered neighborhood insights coming in Phase 2.</p>
-          </div>
-        </div>
-      </RightPanel>
-    </div>
-  );
-});
+        </RightPanel>
+      </div>
+    );
+  }
+);
 ExplorerFilters.displayName = 'ExplorerFilters';
 
 interface AddPlaceFormProps {
@@ -405,17 +432,23 @@ function AddPlaceForm({ onAddPlace, addedPlacesCount, onClearAll }: AddPlaceForm
 function NeighborhoodsView() {
   const [addedPlaces, setAddedPlaces] = useState<Place[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   
   const allPlaces = [...fixturePlaces, ...addedPlaces];
   
-  // Filter places by search query
-  const filteredPlaces = searchQuery.trim()
-    ? allPlaces.filter(place => 
-        place.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        place.neighborhood_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        place.category.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : allPlaces;
+  // Filter places by search query and category
+  const filteredPlaces = allPlaces.filter(place => {
+    // Category filter
+    const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(place.category);
+    
+    // Search filter
+    const matchesSearch = !searchQuery.trim() || 
+      place.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      place.neighborhood_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      place.category.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return matchesCategory && matchesSearch;
+  });
   
   const groupedPlaces = groupPlacesByArea(filteredPlaces);
 
@@ -429,6 +462,18 @@ function NeighborhoodsView() {
 
   const handleClearAll = () => {
     setAddedPlaces([]);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category) 
+        : [...prev, category]
+    );
+  };
+
+  const handleClearFilters = () => {
+    setSelectedCategories([]);
   };
   
   return (
@@ -483,7 +528,19 @@ function NeighborhoodsView() {
         {/* Places grouped by area */}
         {Object.entries(groupedPlaces).length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            <p>No places found matching "{searchQuery}"</p>
+            <p>
+              No places found
+              {searchQuery && ` matching "${searchQuery}"`}
+              {selectedCategories.length > 0 && ` in ${selectedCategories.join(', ')}`}
+            </p>
+            {(searchQuery || selectedCategories.length > 0) && (
+              <button 
+                onClick={() => { setSearchQuery(''); handleClearFilters(); }}
+                className="mt-2 text-primary hover:text-primary/80 text-sm"
+              >
+                Clear all filters
+              </button>
+            )}
           </div>
         ) : (
           Object.entries(groupedPlaces).map(([areaName, places]) => (
@@ -506,7 +563,11 @@ function NeighborhoodsView() {
       </section>
 
       {/* Filters Panel */}
-      <ExplorerFilters />
+      <ExplorerFilters 
+        selectedCategories={selectedCategories}
+        onCategoryChange={handleCategoryChange}
+        onClearFilters={handleClearFilters}
+      />
     </div>
   );
 }
