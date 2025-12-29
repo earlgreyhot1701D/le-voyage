@@ -465,7 +465,6 @@ export type Database = {
         Args: { _token: string }
         Returns: {
           accepted_at: string
-          email: string
           expires_at: string
           id: string
           role: Database["public"]["Enums"]["collaborator_role"]
