@@ -5,6 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -77,6 +78,9 @@ export function CreateTripModal({ open, onOpenChange }: CreateTripModalProps) {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl">Create New Trip</DialogTitle>
+          <DialogDescription>
+            Plan your next adventure. Add details to get started.
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
