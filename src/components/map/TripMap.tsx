@@ -143,17 +143,27 @@ export function TripMap({ places, center, className, onMarkerClick }: TripMapPro
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: transform 0.2s, box-shadow 0.2s;
-        transform-origin: center bottom;
+        transition: box-shadow 0.2s, filter 0.2s;
       `;
+
+      // Store reference to marker for hover events (set after marker creation)
+      let markerRef: mapboxgl.Marker | null = null;
       
       el.addEventListener('mouseenter', () => {
-        el.style.transform = 'scale(1.2)';
-        el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+        el.style.boxShadow = '0 0 0 4px rgba(255,255,255,0.8), 0 4px 16px rgba(0,0,0,0.4)';
+        el.style.filter = 'brightness(1.15)';
+        // Show popup on hover
+        if (markerRef && map.current) {
+          markerRef.getPopup()?.addTo(map.current);
+        }
       });
       el.addEventListener('mouseleave', () => {
-        el.style.transform = 'scale(1)';
         el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+        el.style.filter = 'brightness(1)';
+        // Hide popup when not hovering
+        if (markerRef) {
+          markerRef.getPopup()?.remove();
+        }
       });
 
       // Create popup content with DOM methods to prevent XSS
@@ -180,9 +190,12 @@ export function TripMap({ places, center, className, onMarkerClick }: TripMapPro
       const marker = new mapboxgl.Marker(el)
         .setLngLat([Number(place.longitude), Number(place.latitude)])
         .setPopup(
-          new mapboxgl.Popup({ offset: 25 }).setDOMContent(popupDiv)
+          new mapboxgl.Popup({ offset: 25, closeButton: false, closeOnClick: false }).setDOMContent(popupDiv)
         )
         .addTo(map.current!);
+
+      // Set markerRef so hover events can access the popup
+      markerRef = marker;
 
       if (onMarkerClick) {
         el.addEventListener('click', () => onMarkerClick(place));
