@@ -130,17 +130,31 @@ export function TripMap({ places, center, className, onMarkerClick }: TripMapPro
         el.style.transform = 'scale(1)';
       });
 
+      // Create popup content with DOM methods to prevent XSS
+      const popupDiv = document.createElement('div');
+      popupDiv.style.cssText = 'font-family: system-ui; padding: 4px;';
+      
+      const nameEl = document.createElement('strong');
+      nameEl.style.fontSize = '14px';
+      nameEl.textContent = place.name; // textContent auto-escapes HTML
+      popupDiv.appendChild(nameEl);
+      
+      const categoryEl = document.createElement('p');
+      categoryEl.style.cssText = 'font-size: 12px; color: #666; margin: 4px 0 0 0;';
+      categoryEl.textContent = place.category;
+      popupDiv.appendChild(categoryEl);
+      
+      if (place.rating) {
+        const ratingEl = document.createElement('p');
+        ratingEl.style.cssText = 'font-size: 11px; color: #D4AF37; margin: 4px 0 0 0;';
+        ratingEl.textContent = `★ ${place.rating}`;
+        popupDiv.appendChild(ratingEl);
+      }
+
       const marker = new mapboxgl.Marker(el)
         .setLngLat([Number(place.longitude), Number(place.latitude)])
         .setPopup(
-          new mapboxgl.Popup({ offset: 25 })
-            .setHTML(`
-              <div style="font-family: system-ui; padding: 4px;">
-                <strong style="font-size: 14px;">${place.name}</strong>
-                <p style="font-size: 12px; color: #666; margin: 4px 0 0 0;">${place.category}</p>
-                ${place.rating ? `<p style="font-size: 11px; color: #D4AF37; margin: 4px 0 0 0;">★ ${place.rating}</p>` : ''}
-              </div>
-            `)
+          new mapboxgl.Popup({ offset: 25 }).setDOMContent(popupDiv)
         )
         .addTo(map.current!);
 
