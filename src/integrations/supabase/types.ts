@@ -460,6 +460,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      generate_trip_days: { Args: { p_trip_id: string }; Returns: undefined }
       get_trip_id_from_day: { Args: { _trip_day_id: string }; Returns: string }
       get_trip_id_from_item: { Args: { _item_id: string }; Returns: string }
       has_trip_access: {

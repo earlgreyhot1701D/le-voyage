@@ -1,4 +1,4 @@
-import { useState, forwardRef, useCallback } from 'react';
+import { useState, forwardRef, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout';
 import { TopBar } from '@/components/layout/TopBar';
@@ -7,9 +7,16 @@ import { useTrip, useTripDays, useItineraryItems, useInsights } from '@/hooks/us
 import { usePlaces, useCreatePlace, useDeletePlace } from '@/hooks/usePlaces';
 import { useTripPermissions } from '@/hooks/useTripPermissions';
 import { useAIInsights } from '@/hooks/useAIInsights';
+import { usePlaceSearch } from '@/hooks/usePlaceSearch';
+import { useGenerateTripDays } from '@/hooks/useItinerary';
 import { EditTripModal, CollaboratorsModal } from '@/components/trips';
 import { InsightsPanel } from '@/components/insights';
+import { PlaceSearchResults } from '@/components/places';
+import { TripMap } from '@/components/map';
+import { AddToItineraryModal } from '@/components/itinerary';
+import { placeSearchService } from '@/services/placeSearchService';
 import type { Tables } from '@/integrations/supabase/types';
+import { toast } from 'sonner';
 
 type TripDay = Tables<'trip_days'>;
 type Place = Tables<'places'> & { added_by_display_name?: string | null };
@@ -90,19 +97,22 @@ function EventRow({
 
 function IntelligencePanel({ 
   neighborhoodFocus,
-  insights 
+  insights,
+  places 
 }: { 
   neighborhoodFocus: string;
   insights: Insight[];
+  places: Place[];
 }) {
   const insight = insights.find(i => i.neighborhood_focus === neighborhoodFocus);
   
   return (
     <aside className="flex flex-col gap-5">
-      {/* Mini Map */}
-      <div className="mini-map">
-        <div className="map-label">Real-time Map</div>
-      </div>
+      {/* Interactive Map */}
+      <TripMap 
+        places={places}
+        className="h-[250px]"
+      />
 
       {/* Gem Card - AI Insight */}
       {insight && (
@@ -149,6 +159,7 @@ function ItineraryView({ tripId }: { tripId: string }) {
   const { data: places = [] } = usePlaces(tripId);
   const { data: insights = [] } = useInsights(tripId);
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
+  const generateDays = useGenerateTripDays(tripId);
   
   // Select first day when days load
   const effectiveDayId = selectedDayId || tripDays[0]?.id;
@@ -156,6 +167,13 @@ function ItineraryView({ tripId }: { tripId: string }) {
   const { data: items = [], isLoading: itemsLoading } = useItineraryItems(effectiveDayId);
   
   const selectedDay = tripDays.find(d => d.id === effectiveDayId);
+
+  // Auto-generate days if none exist (after trip has dates)
+  useEffect(() => {
+    if (!daysLoading && tripDays.length === 0) {
+      generateDays.mutate();
+    }
+  }, [daysLoading, tripDays.length]);
 
   if (daysLoading) {
     return (
@@ -171,6 +189,13 @@ function ItineraryView({ tripId }: { tripId: string }) {
         <div className="text-center">
           <p className="mb-2">No days planned yet.</p>
           <p className="text-sm">Add trip dates to start planning your itinerary.</p>
+          <button 
+            onClick={() => generateDays.mutate()}
+            disabled={generateDays.isPending}
+            className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
+          >
+            {generateDays.isPending ? 'Generating...' : 'Generate Days'}
+          </button>
         </div>
       </div>
     );
@@ -223,6 +248,7 @@ function ItineraryView({ tripId }: { tripId: string }) {
       <IntelligencePanel 
         neighborhoodFocus={selectedDay?.neighborhood_focus || ''} 
         insights={insights}
+        places={places}
       />
     </div>
   );
@@ -486,9 +512,19 @@ interface NeighborhoodsViewProps {
 
 function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsViewProps) {
   const { data: places = [], isLoading } = usePlaces(tripId);
+  const { data: tripDays = [] } = useTripDays(tripId);
   const deletePlace = useDeletePlace(tripId);
+  const createPlace = useCreatePlace();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  
+  // Google Places search
+  const { results: searchResults, isSearching, search, clearResults } = usePlaceSearch();
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Add to itinerary modal
+  const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
+  const [selectedPlaceForItinerary, setSelectedPlaceForItinerary] = useState<Place | null>(null);
   
   // AI Insights
   const { 
@@ -509,13 +545,60 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
     setDismissedInsights(prev => [...prev, index]);
   }, []);
   
+  // Debounced search
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    if (value.length >= 3) {
+      searchTimeoutRef.current = setTimeout(() => {
+        // Search with Paris as default location
+        search(value, { lat: 48.8566, lng: 2.3522 });
+      }, 300);
+    } else {
+      clearResults();
+    }
+  }, [search, clearResults]);
+  
+  // Add place from Google search result
+  const handleAddFromSearch = useCallback(async (result: import('@/services/placeSearchService').PlaceSearchResult) => {
+    try {
+      const categoryStr = placeSearchService.mapTypesToCategory(result.types);
+      const category = categoryStr as "Attraction" | "Day Trip" | "Experience" | "Food and Drink" | "Lodging" | "Museum" | "Other" | "Shopping" | "Transit";
+      const { neighborhood, arrondissement } = placeSearchService.extractNeighborhood(result.address);
+      
+      await createPlace.mutateAsync({
+        trip_id: tripId,
+        name: result.name,
+        category,
+        neighborhood_name: neighborhood,
+        arrondissement,
+        latitude: result.lat,
+        longitude: result.lng,
+        rating: result.rating,
+        badge: null,
+        area_id: null,
+      });
+      
+      toast.success(`Added "${result.name}" to your trip!`);
+      clearResults();
+      setSearchQuery('');
+    } catch (error) {
+      console.error('Failed to add place:', error);
+      toast.error('Failed to add place');
+    }
+  }, [tripId, createPlace, clearResults]);
+  
   // Get unique neighborhoods from places
   const neighborhoods = [...new Set(places.map(p => p.neighborhood_name).filter(Boolean))] as string[];
   
-  // Filter places by search query and category
+  // Filter places by search query and category (when not showing Google results)
   const filteredPlaces = places.filter(place => {
     const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(place.category);
-    const matchesSearch = !searchQuery.trim() || 
+    const matchesSearch = !searchQuery.trim() || searchResults.length > 0 || 
       place.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       place.neighborhood_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       place.category.toLowerCase().includes(searchQuery.toLowerCase());
@@ -528,6 +611,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
   const handleRemovePlace = async (placeId: string) => {
     try {
       await deletePlace.mutateAsync(placeId);
+      toast.success('Place removed');
     } catch (error) {
       console.error('Failed to remove place:', error);
     }
@@ -543,6 +627,11 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
 
   const handleClearFilters = () => {
     setSelectedCategories([]);
+  };
+  
+  const handleAddToItinerary = (place: Place) => {
+    setSelectedPlaceForItinerary(place);
+    setItineraryModalOpen(true);
   };
   
   return (
@@ -565,14 +654,14 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
           placesCount={places.length}
         />
         
-        {/* Search Bar */}
+        {/* Search Bar with Google Places */}
         <div className="mb-6">
           <div className="relative">
             <input
               type="text"
-              placeholder="Search places, neighborhoods, or categories..."
+              placeholder="Search Google Places or filter your saved places..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full p-4 pl-12 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -580,16 +669,25 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
             </span>
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery('')}
+                onClick={() => { setSearchQuery(''); clearResults(); }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 ✕
               </button>
             )}
+            
+            {/* Google Places search results dropdown */}
+            <PlaceSearchResults
+              results={searchResults}
+              isLoading={isSearching}
+              onSelect={handleAddFromSearch}
+              onClose={clearResults}
+            />
           </div>
-          {searchQuery && (
+          {searchQuery && searchResults.length === 0 && !isSearching && (
             <p className="text-sm text-muted-foreground mt-2">
-              Found {filteredPlaces.length} place{filteredPlaces.length !== 1 ? 's' : ''}
+              Found {filteredPlaces.length} saved place{filteredPlaces.length !== 1 ? 's' : ''}
+              {searchQuery.length >= 3 && ' • Type 3+ characters to search Google Places'}
             </p>
           )}
         </div>
@@ -657,6 +755,14 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
           onClearFilters={handleClearFilters}
         />
       </aside>
+      
+      {/* Add to Itinerary Modal */}
+      <AddToItineraryModal
+        open={itineraryModalOpen}
+        onOpenChange={setItineraryModalOpen}
+        tripDays={tripDays}
+        place={selectedPlaceForItinerary}
+      />
     </div>
   );
 }
