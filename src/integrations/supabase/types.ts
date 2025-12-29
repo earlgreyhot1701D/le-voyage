@@ -461,9 +461,21 @@ export type Database = {
         }
       }
       generate_trip_days: { Args: { p_trip_id: string }; Returns: undefined }
+      get_shared_trip_user_ids: {
+        Args: { _user_id: string }
+        Returns: string[]
+      }
       get_trip_id_from_day: { Args: { _trip_day_id: string }; Returns: string }
       get_trip_id_from_item: { Args: { _item_id: string }; Returns: string }
       has_trip_access: {
+        Args: { _trip_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_trip_member: {
+        Args: { _trip_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_trip_owner: {
         Args: { _trip_id: string; _user_id: string }
         Returns: boolean
       }
