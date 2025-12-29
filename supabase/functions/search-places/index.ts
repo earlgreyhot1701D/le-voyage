@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 // Allowed origins for CORS
 const ALLOWED_ORIGIN_PATTERNS = [
@@ -29,10 +30,14 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-interface PlaceSearchRequest {
-  query: string;
-  location?: { lat: number; lng: number };
-}
+// Input validation schema
+const SearchPlacesSchema = z.object({
+  query: z.string().min(1).max(500),
+  location: z.object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+  }).optional(),
+});
 
 interface PlaceResult {
   id: string;
@@ -71,29 +76,29 @@ serve(async (req) => {
       );
     }
 
+    // Parse and validate input
     const body = await req.json();
-    const { query, location } = body as PlaceSearchRequest;
+    const parseResult = SearchPlacesSchema.safeParse(body);
     
-    // Input validation
-    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+    if (!parseResult.success) {
+      console.warn('[search-places] Invalid input:', parseResult.error.message);
       return new Response(
-        JSON.stringify({ error: 'Query is required' }),
+        JSON.stringify({ error: 'Invalid input parameters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Sanitize and limit query length
-    const sanitizedQuery = query.trim().slice(0, 200);
+    const { query, location } = parseResult.data;
 
-    console.log(`[search-places] Searching for: "${sanitizedQuery}" near ${location?.lat}, ${location?.lng}`);
+    console.log(`[search-places] Searching for: "${query}" near ${location?.lat ?? 'default'}, ${location?.lng ?? 'default'}`);
 
     // Default to Paris if no location provided
-    const searchLat = location?.lat || 48.8566;
-    const searchLng = location?.lng || 2.3522;
+    const searchLat = location?.lat ?? 48.8566;
+    const searchLng = location?.lng ?? 2.3522;
 
     // Build the Text Search URL
     const url = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
-    url.searchParams.set('query', sanitizedQuery);
+    url.searchParams.set('query', query);
     url.searchParams.set('location', `${searchLat},${searchLng}`);
     url.searchParams.set('radius', '10000'); // 10km radius
     url.searchParams.set('key', apiKey);
