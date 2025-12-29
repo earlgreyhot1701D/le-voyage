@@ -1,18 +1,16 @@
 import { useState, forwardRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout';
 import { TopBar } from '@/components/layout/TopBar';
 import { RightPanel } from '@/components/layout/RightPanel';
-import { 
-  fixtureTrip, 
-  fixtureTripDays, 
-  fixtureItineraryItems, 
-  fixturePlaces,
-  fixtureInsights 
-} from '@/data/fixtures';
-import type { TripDay } from '@/types/trip';
-import type { ItineraryItem } from '@/types/itinerary';
-import type { Place } from '@/types/place';
+import { useTrip, useTripDays, useItineraryItems, useInsights } from '@/hooks/useTrips';
+import { usePlaces, useCreatePlace, useDeletePlace } from '@/hooks/usePlaces';
+import type { Tables } from '@/integrations/supabase/types';
+
+type TripDay = Tables<'trip_days'>;
+type Place = Tables<'places'> & { added_by_display_name?: string | null };
+type ItineraryItem = Tables<'itinerary_items'> & { profiles?: { display_name: string | null } | null };
+type Insight = Tables<'insights'>;
 
 // ============= ITINERARY VIEW COMPONENTS =============
 
@@ -25,6 +23,11 @@ function DaySelector({
   selectedDayId: string; 
   onSelectDay: (id: string) => void;
 }) {
+  const formatDayLabel = (day: TripDay) => {
+    const date = new Date(day.date);
+    return date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+  };
+
   return (
     <div className="flex gap-5 mb-8 border-b border-border pb-4">
       {days.map((day) => (
@@ -33,15 +36,23 @@ function DaySelector({
           onClick={() => onSelectDay(day.id)}
           className={`day-pill ${day.id === selectedDayId ? 'active' : ''}`}
         >
-          {day.label}
+          {formatDayLabel(day)}
         </button>
       ))}
     </div>
   );
 }
 
-function EventRow({ item, isLast }: { item: ItineraryItem; isLast: boolean }) {
-  const place = fixturePlaces.find(p => p.id === item.place_id);
+function EventRow({ 
+  item, 
+  place,
+  isLast 
+}: { 
+  item: ItineraryItem; 
+  place?: Place;
+  isLast: boolean;
+}) {
+  const displayName = item.profiles?.display_name;
   
   return (
     <div className="event-row">
@@ -62,26 +73,10 @@ function EventRow({ item, isLast }: { item: ItineraryItem; isLast: boolean }) {
           </span>
         )}
         
-        {/* Ticket info */}
-        {item.ticket && (
-          <div 
-            className="mt-2.5 p-2.5 rounded-lg text-xs"
-            style={{ 
-              background: 'hsl(var(--card))', 
-              borderLeft: '3px solid hsl(var(--amber-glass))' 
-            }}
-          >
-            Ticket ID: {item.ticket.id} • 
-            <a href={item.ticket.pdf_url} className="text-muted ml-1 hover:underline">
-              View PDF
-            </a>
-          </div>
-        )}
-        
         {/* Attribution */}
-        {item.added_by_display_name && (
+        {displayName && (
           <p className="text-[11px] text-muted-foreground mt-2 opacity-70">
-            Added by {item.added_by_display_name}
+            Added by {displayName}
           </p>
         )}
       </div>
@@ -89,8 +84,14 @@ function EventRow({ item, isLast }: { item: ItineraryItem; isLast: boolean }) {
   );
 }
 
-function IntelligencePanel({ neighborhoodFocus }: { neighborhoodFocus: string }) {
-  const insight = fixtureInsights.find(i => i.neighborhood_focus === neighborhoodFocus);
+function IntelligencePanel({ 
+  neighborhoodFocus,
+  insights 
+}: { 
+  neighborhoodFocus: string;
+  insights: Insight[];
+}) {
+  const insight = insights.find(i => i.neighborhood_focus === neighborhoodFocus);
   
   return (
     <aside className="flex flex-col gap-5">
@@ -108,7 +109,9 @@ function IntelligencePanel({ neighborhoodFocus }: { neighborhoodFocus: string })
           <p className="text-[13px] leading-relaxed opacity-90">
             {insight.content}
           </p>
-          <button className="btn-nouveau">{insight.action_label}</button>
+          {insight.action_label && (
+            <button className="btn-nouveau">{insight.action_label}</button>
+          )}
         </div>
       )}
 
@@ -137,11 +140,37 @@ function IntelligencePanel({ neighborhoodFocus }: { neighborhoodFocus: string })
   );
 }
 
-function ItineraryView() {
-  const [selectedDayId, setSelectedDayId] = useState(fixtureTripDays[0].id);
+function ItineraryView({ tripId }: { tripId: string }) {
+  const { data: tripDays = [], isLoading: daysLoading } = useTripDays(tripId);
+  const { data: places = [] } = usePlaces(tripId);
+  const { data: insights = [] } = useInsights(tripId);
+  const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   
-  const selectedDay = fixtureTripDays.find(d => d.id === selectedDayId) || fixtureTripDays[0];
-  const dayItems = fixtureItineraryItems.filter(item => item.trip_day_id === selectedDayId);
+  // Select first day when days load
+  const effectiveDayId = selectedDayId || tripDays[0]?.id;
+  
+  const { data: items = [], isLoading: itemsLoading } = useItineraryItems(effectiveDayId);
+  
+  const selectedDay = tripDays.find(d => d.id === effectiveDayId);
+
+  if (daysLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+        Loading itinerary...
+      </div>
+    );
+  }
+
+  if (tripDays.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+        <div className="text-center">
+          <p className="mb-2">No days planned yet.</p>
+          <p className="text-sm">Add trip dates to start planning your itinerary.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -154,22 +183,32 @@ function ItineraryView() {
       {/* Itinerary Card */}
       <section className="content-card">
         <DaySelector 
-          days={fixtureTripDays} 
-          selectedDayId={selectedDayId}
+          days={tripDays} 
+          selectedDayId={effectiveDayId || ''}
           onSelectDay={setSelectedDayId}
         />
         
-        <h3 className="font-serif text-[32px] mb-8">{selectedDay.title}</h3>
+        <h3 className="font-serif text-[32px] mb-8">
+          {selectedDay?.title || `Day ${selectedDay?.day_number}`}
+        </h3>
         
-        {dayItems.map((item, index) => (
-          <EventRow 
-            key={item.id} 
-            item={item} 
-            isLast={index === dayItems.length - 1}
-          />
-        ))}
+        {itemsLoading && (
+          <p className="text-muted-foreground text-center py-8">Loading...</p>
+        )}
         
-        {dayItems.length === 0 && (
+        {!itemsLoading && items.map((item, index) => {
+          const place = places.find(p => p.id === item.place_id);
+          return (
+            <EventRow 
+              key={item.id} 
+              item={item}
+              place={place}
+              isLast={index === items.length - 1}
+            />
+          );
+        })}
+        
+        {!itemsLoading && items.length === 0 && (
           <p className="text-muted-foreground text-center py-8">
             No activities planned for this day yet.
           </p>
@@ -177,7 +216,10 @@ function ItineraryView() {
       </section>
 
       {/* Intelligence Panel */}
-      <IntelligencePanel neighborhoodFocus={selectedDay.neighborhood_focus || ''} />
+      <IntelligencePanel 
+        neighborhoodFocus={selectedDay?.neighborhood_focus || ''} 
+        insights={insights}
+      />
     </div>
   );
 }
@@ -207,12 +249,10 @@ interface PlaceCardProps {
 }
 
 const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove }, ref) => {
-  const isUserAdded = place.id.startsWith('place-user-');
-  
   return (
     <div ref={ref} className="content-card hover:shadow-md transition-shadow cursor-pointer group relative">
-      {/* Remove button for user-added places */}
-      {isUserAdded && onRemove && (
+      {/* Remove button */}
+      {onRemove && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -234,7 +274,7 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove 
         </div>
         {place.rating && (
           <div className="text-right">
-            <p className="text-2xl font-semibold text-primary">{place.rating}</p>
+            <p className="text-2xl font-semibold text-primary">{String(place.rating)}</p>
             <p className="text-xs text-muted-foreground">Rating</p>
           </div>
         )}
@@ -256,6 +296,13 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove 
           </span>
         )}
       </div>
+      
+      {/* Attribution */}
+      {place.added_by_display_name && (
+        <p className="text-[11px] text-muted-foreground mt-3 opacity-70">
+          Added by {place.added_by_display_name}
+        </p>
+      )}
     </div>
   );
 });
@@ -347,49 +394,47 @@ const ExplorerFilters = forwardRef<HTMLDivElement, ExplorerFiltersProps>(
 ExplorerFilters.displayName = 'ExplorerFilters';
 
 interface AddPlaceFormProps {
-  onAddPlace: (place: Place) => void;
-  addedPlacesCount: number;
-  onClearAll: () => void;
+  tripId: string;
+  neighborhoods: string[];
+  placesCount: number;
 }
 
-function AddPlaceForm({ onAddPlace, addedPlacesCount, onClearAll }: AddPlaceFormProps) {
+function AddPlaceForm({ tripId, neighborhoods, placesCount }: AddPlaceFormProps) {
   const [name, setName] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
+  const createPlace = useCreatePlace();
 
-  // Get unique neighborhoods from existing places
-  const neighborhoods = [...new Set(fixturePlaces.map(p => p.neighborhood_name).filter(Boolean))] as string[];
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) return;
 
-    const newPlace: Place = {
-      id: `place-user-${Date.now()}`,
-      name: name.trim(),
-      arrondissement: null,
-      neighborhood_name: neighborhood || null, // Allow empty - goes to "To Sort" group
-      category: 'Other',
-      rating: null,
-      badge: null,
-      area_id: null,
-    };
-
-    onAddPlace(newPlace);
-    setName('');
-    setNeighborhood('');
+    try {
+      await createPlace.mutateAsync({
+        trip_id: tripId,
+        name: name.trim(),
+        arrondissement: null,
+        neighborhood_name: neighborhood || null,
+        category: 'Other',
+        rating: null,
+        badge: null,
+        area_id: null,
+        latitude: null,
+        longitude: null,
+      });
+      
+      setName('');
+      setNeighborhood('');
+    } catch (error) {
+      console.error('Failed to add place:', error);
+    }
   };
 
   return (
     <div className="mb-6 p-4 border border-border rounded-xl bg-card">
       <div className="flex items-center justify-between mb-3">
         <h4 className="font-serif text-lg">Add a Place</h4>
-        {addedPlacesCount > 0 && (
-          <button
-            onClick={onClearAll}
-            className="text-xs text-destructive hover:text-destructive/80 transition-colors"
-          >
-            Clear all my places ({addedPlacesCount})
-          </button>
-        )}
+        <span className="text-xs text-muted-foreground">
+          {placesCount} place{placesCount !== 1 ? 's' : ''} saved
+        </span>
       </div>
       <div className="flex gap-3 flex-wrap items-end">
         <div className="flex-1 min-w-[200px]">
@@ -416,10 +461,10 @@ function AddPlaceForm({ onAddPlace, addedPlacesCount, onClearAll }: AddPlaceForm
         </div>
         <button
           onClick={handleSubmit}
-          disabled={!name.trim()}
+          disabled={!name.trim() || createPlace.isPending}
           className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          Add
+          {createPlace.isPending ? 'Adding...' : 'Add'}
         </button>
       </div>
       <p className="text-xs text-muted-foreground mt-2">
@@ -429,19 +474,18 @@ function AddPlaceForm({ onAddPlace, addedPlacesCount, onClearAll }: AddPlaceForm
   );
 }
 
-function NeighborhoodsView() {
-  const [addedPlaces, setAddedPlaces] = useState<Place[]>([]);
+function NeighborhoodsView({ tripId }: { tripId: string }) {
+  const { data: places = [], isLoading } = usePlaces(tripId);
+  const deletePlace = useDeletePlace(tripId);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   
-  const allPlaces = [...fixturePlaces, ...addedPlaces];
+  // Get unique neighborhoods from places
+  const neighborhoods = [...new Set(places.map(p => p.neighborhood_name).filter(Boolean))] as string[];
   
   // Filter places by search query and category
-  const filteredPlaces = allPlaces.filter(place => {
-    // Category filter
+  const filteredPlaces = places.filter(place => {
     const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(place.category);
-    
-    // Search filter
     const matchesSearch = !searchQuery.trim() || 
       place.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       place.neighborhood_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -452,16 +496,12 @@ function NeighborhoodsView() {
   
   const groupedPlaces = groupPlacesByArea(filteredPlaces);
 
-  const handleAddPlace = (place: Place) => {
-    setAddedPlaces(prev => [...prev, place]);
-  };
-
-  const handleRemovePlace = (placeId: string) => {
-    setAddedPlaces(prev => prev.filter(p => p.id !== placeId));
-  };
-
-  const handleClearAll = () => {
-    setAddedPlaces([]);
+  const handleRemovePlace = async (placeId: string) => {
+    try {
+      await deletePlace.mutateAsync(placeId);
+    } catch (error) {
+      console.error('Failed to remove place:', error);
+    }
   };
 
   const handleCategoryChange = (category: string) => {
@@ -491,9 +531,9 @@ function NeighborhoodsView() {
         
         {/* Add Place Form */}
         <AddPlaceForm 
-          onAddPlace={handleAddPlace} 
-          addedPlacesCount={addedPlaces.length}
-          onClearAll={handleClearAll}
+          tripId={tripId}
+          neighborhoods={neighborhoods}
+          placesCount={places.length}
         />
         
         {/* Search Bar */}
@@ -525,8 +565,15 @@ function NeighborhoodsView() {
           )}
         </div>
 
+        {/* Loading state */}
+        {isLoading && (
+          <div className="text-center py-12 text-muted-foreground">
+            Loading places...
+          </div>
+        )}
+
         {/* Places grouped by area */}
-        {Object.entries(groupedPlaces).length === 0 ? (
+        {!isLoading && Object.entries(groupedPlaces).length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <p>
               No places found
@@ -543,17 +590,17 @@ function NeighborhoodsView() {
             )}
           </div>
         ) : (
-          Object.entries(groupedPlaces).map(([areaName, places]) => (
+          Object.entries(groupedPlaces).map(([areaName, areaPlaces]) => (
             <div key={areaName} className="mb-8">
               <h3 className="font-serif text-xl font-semibold mb-4 text-foreground">
                 {areaName}
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
-                {places.map((place) => (
+                {areaPlaces.map((place) => (
                   <PlaceCard 
                     key={place.id} 
                     place={place} 
-                    onRemove={place.id.startsWith('place-user-') ? () => handleRemovePlace(place.id) : undefined}
+                    onRemove={() => handleRemovePlace(place.id)}
                   />
                 ))}
               </div>
@@ -575,19 +622,44 @@ function NeighborhoodsView() {
 // ============= MAIN PAGE COMPONENT =============
 
 export default function TripDetailPage() {
+  const { tripId } = useParams<{ tripId: string }>();
   const [searchParams] = useSearchParams();
   const view = searchParams.get('view');
   
-  // Format date for TopBar (April 2025)
-  const tripDate = fixtureTrip.start_date 
-    ? new Date(fixtureTrip.start_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-    : 'April 2025';
+  const { data: trip, isLoading } = useTrip(tripId);
+  
+  if (isLoading) {
+    return (
+      <AppShell>
+        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+          Loading trip...
+        </div>
+      </AppShell>
+    );
+  }
+  
+  if (!trip) {
+    return (
+      <AppShell>
+        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+          Trip not found
+        </div>
+      </AppShell>
+    );
+  }
+
+  const tripDate = trip.start_date 
+    ? new Date(trip.start_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : 'Dates TBD';
 
   return (
     <AppShell>
       <TopBar date={tripDate} />
       
-      {view === 'neighborhoods' ? <NeighborhoodsView /> : <ItineraryView />}
+      {view === 'neighborhoods' 
+        ? <NeighborhoodsView tripId={trip.id} /> 
+        : <ItineraryView tripId={trip.id} />
+      }
     </AppShell>
   );
 }
