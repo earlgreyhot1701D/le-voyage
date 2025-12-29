@@ -1,4 +1,5 @@
 import { fixtureTrip } from '@/data/fixtures';
+import { UserMenu } from '@/components/auth/UserMenu';
 
 interface TopBarProps {
   date?: string;
@@ -21,10 +22,7 @@ export function TopBar({ date = defaultDate }: TopBarProps) {
       </div>
       <div className="flex items-center gap-5">
         <span className="text-sm font-semibold">{date}</span>
-        <div 
-          className="w-[45px] h-[45px] rounded-full border-[3px] border-white"
-          style={{ background: 'hsl(var(--amber-glass))' }}
-        />
+        <UserMenu />
       </div>
     </div>
   );
