@@ -280,13 +280,10 @@ interface PlaceCardProps {
 }
 
 const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove, onAddToItinerary }, ref) => {
-  // Generate Google Maps URL for the place
-  const getGoogleMapsUrl = () => {
-    if (place.latitude && place.longitude) {
-      return `https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}`;
-    }
-    // Fallback to name search
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name)}`;
+  // Generate Google Search URL for researching the place
+  const getSearchUrl = () => {
+    const searchQuery = `${place.name} ${place.neighborhood_name || 'Paris'}`;
+    return `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
   };
 
   return (
@@ -322,11 +319,12 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
       <div className="flex items-start justify-between mb-3">
         <div>
           <a 
-            href={getGoogleMapsUrl()}
+            href={getSearchUrl()}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             className="font-serif text-xl font-semibold text-card-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5 group/link"
+            title="Search for more info"
           >
             {place.name}
             <svg 
@@ -335,7 +333,7 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
               stroke="currentColor" 
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </a>
           <p className="text-sm text-muted-foreground">{place.neighborhood_name}</p>
