@@ -1,4 +1,5 @@
 import { useState, forwardRef, useCallback, useEffect, useRef } from 'react';
+import { MapPin } from 'lucide-react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout';
 import { TopBar } from '@/components/layout/TopBar';
@@ -318,29 +319,46 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
       
       <div className="flex items-start justify-between mb-3">
         <div>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              const url = getSearchUrl();
-              const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-              // Fallback for popup blockers
-              if (!newWindow) {
-                window.location.href = url;
-              }
-            }}
-            className="font-serif text-xl font-semibold text-card-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5 group/link text-left"
-            title="Search for more info"
-          >
-            {place.name}
-            <svg 
-              className="w-4 h-4 opacity-70 group-hover/link:opacity-100 transition-opacity text-muted-foreground" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = getSearchUrl();
+                const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+                if (!newWindow) {
+                  toast.info('Popup blocked. Right-click and "Open in new tab" or allow popups.');
+                }
+              }}
+              className="font-serif text-xl font-semibold text-card-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5 group/link text-left"
+              title="Search for more info"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </button>
+              {place.name}
+              <svg 
+                className="w-4 h-4 opacity-70 group-hover/link:opacity-100 transition-opacity text-muted-foreground" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = place.latitude && place.longitude
+                  ? `https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`
+                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${place.neighborhood_name || 'Paris'}`)}`;
+                const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+                if (!newWindow) {
+                  toast.info('Popup blocked. Allow popups to open Google Maps.');
+                }
+              }}
+              className="w-7 h-7 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center"
+              title="Get directions in Google Maps"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+            </button>
+          </div>
           <p className="text-sm text-muted-foreground">{place.neighborhood_name}</p>
         </div>
         {place.rating && (
