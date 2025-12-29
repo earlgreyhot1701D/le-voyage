@@ -24,16 +24,16 @@ export function Sidebar() {
       title: 'Trip Planning',
       items: [
         { 
-          icon: Compass, 
-          label: 'Itinerary Builder', 
-          path: `/trip/${tripId}`,
-          isActive: inTrip && view !== 'neighborhoods',
-        },
-        { 
           icon: Map, 
           label: 'Neighborhood Explorer', 
           path: `/trip/${tripId}?view=neighborhoods`,
           isActive: inTrip && view === 'neighborhoods',
+        },
+        { 
+          icon: Compass, 
+          label: 'Itinerary Builder', 
+          path: `/trip/${tripId}?view=itinerary`,
+          isActive: inTrip && view === 'itinerary',
         },
         { 
           icon: Wallet, 
