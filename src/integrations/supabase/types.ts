@@ -461,6 +461,7 @@ export type Database = {
         }
       }
       generate_trip_days: { Args: { p_trip_id: string }; Returns: undefined }
+      get_current_user_email: { Args: never; Returns: string }
       get_invitation_by_token: {
         Args: { _token: string }
         Returns: {

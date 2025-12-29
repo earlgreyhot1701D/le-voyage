@@ -143,14 +143,17 @@ export function TripMap({ places, center, className, onMarkerClick }: TripMapPro
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: transform 0.2s;
+        transition: transform 0.2s, box-shadow 0.2s;
+        transform-origin: center bottom;
       `;
       
       el.addEventListener('mouseenter', () => {
         el.style.transform = 'scale(1.2)';
+        el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
       });
       el.addEventListener('mouseleave', () => {
         el.style.transform = 'scale(1)';
+        el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
       });
 
       // Create popup content with DOM methods to prevent XSS
