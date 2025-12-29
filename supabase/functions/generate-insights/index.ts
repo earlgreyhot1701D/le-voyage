@@ -1,0 +1,170 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface Place {
+  id: string;
+  name: string;
+  category: string;
+  arrondissement?: string;
+  neighborhood_name?: string;
+  rating?: number;
+}
+
+interface GenerateInsightsRequest {
+  tripId: string;
+  neighborhoodFocus: string;
+  places: Place[];
+  tripTitle?: string;
+  destination?: string;
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!anthropicApiKey) {
+      console.error('ANTHROPIC_API_KEY not configured');
+      throw new Error('AI service not configured');
+    }
+
+    const { tripId, neighborhoodFocus, places, tripTitle, destination }: GenerateInsightsRequest = await req.json();
+    
+    console.log(`Generating insights for trip ${tripId}, neighborhood: ${neighborhoodFocus}`);
+    console.log(`Places count: ${places.length}`);
+
+    if (!places || places.length === 0) {
+      return new Response(
+        JSON.stringify({ insights: [], message: 'No places to analyze' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Group places by category for analysis
+    const placesByCategory: Record<string, Place[]> = {};
+    places.forEach(place => {
+      if (!placesByCategory[place.category]) {
+        placesByCategory[place.category] = [];
+      }
+      placesByCategory[place.category].push(place);
+    });
+
+    const placeSummary = Object.entries(placesByCategory)
+      .map(([cat, ps]) => `${cat}: ${ps.map(p => p.name).join(', ')}`)
+      .join('\n');
+
+    const systemPrompt = `You are a helpful travel planning assistant for Le Voyage, an intelligent trip planner. 
+Your role is to provide thoughtful, actionable suggestions based on the user's saved places.
+
+Key principles:
+- Only suggest things based on places the user has already saved (no external discovery)
+- Be concise and specific
+- Focus on practical groupings, timing, and logistics
+- Explain WHY you're making each suggestion
+- Never override user preferences - only suggest
+
+Respond with a JSON array of 1-3 insights, each with:
+- title: Short, catchy title (max 8 words)
+- content: The suggestion with clear reasoning (2-3 sentences)
+- action_label: Optional button text for a follow-up action (e.g., "Group these places")`;
+
+    const userPrompt = `Trip: "${tripTitle || 'My Trip'}" to ${destination || 'a destination'}
+Current neighborhood focus: ${neighborhoodFocus || 'Not set'}
+
+User's saved places:
+${placeSummary}
+
+Based on these places, provide 1-3 helpful insights about:
+- Logical groupings by proximity or theme
+- Timing suggestions (e.g., "Visit the museum before the café next door")
+- Potential gaps or opportunities they might consider
+
+Remember: Only reference places they've already saved. Be helpful, not prescriptive.`;
+
+    console.log('Calling Claude API...');
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        messages: [
+          {
+            role: 'user',
+            content: userPrompt
+          }
+        ],
+        system: systemPrompt,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Claude API error:', response.status, errorText);
+      throw new Error(`Claude API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Claude response received');
+
+    // Extract the text content
+    const textContent = data.content?.find((c: { type: string }) => c.type === 'text')?.text || '[]';
+    
+    // Parse the JSON from the response
+    let insights = [];
+    try {
+      // Try to extract JSON array from the response
+      const jsonMatch = textContent.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        insights = JSON.parse(jsonMatch[0]);
+      }
+    } catch (parseError) {
+      console.error('Failed to parse insights JSON:', parseError);
+      // Fallback: create a single insight from the text
+      insights = [{
+        title: 'Travel Tip',
+        content: textContent.slice(0, 200),
+        action_label: null
+      }];
+    }
+
+    // Validate and clean insights
+    insights = insights.slice(0, 3).map((insight: { title?: string; content?: string; action_label?: string }) => ({
+      title: insight.title || 'Suggestion',
+      content: insight.content || '',
+      action_label: insight.action_label || null,
+      neighborhood_focus: neighborhoodFocus,
+    }));
+
+    console.log(`Generated ${insights.length} insights`);
+
+    return new Response(
+      JSON.stringify({ insights }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to generate insights';
+    console.error('Error generating insights:', errorMessage);
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+});
