@@ -201,9 +201,30 @@ function groupPlacesByArea(places: Place[]) {
   return groups;
 }
 
-const PlaceCard = forwardRef<HTMLDivElement, { place: Place }>(({ place }, ref) => {
+interface PlaceCardProps {
+  place: Place;
+  onRemove?: () => void;
+}
+
+const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove }, ref) => {
+  const isUserAdded = place.id.startsWith('place-user-');
+  
   return (
-    <div ref={ref} className="content-card hover:shadow-md transition-shadow cursor-pointer group">
+    <div ref={ref} className="content-card hover:shadow-md transition-shadow cursor-pointer group relative">
+      {/* Remove button for user-added places */}
+      {isUserAdded && onRemove && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors flex items-center justify-center text-xs font-medium opacity-0 group-hover:opacity-100"
+          title="Remove place"
+        >
+          ✕
+        </button>
+      )}
+      
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="font-serif text-xl font-semibold text-card-foreground group-hover:text-primary transition-colors">
@@ -298,7 +319,13 @@ const ExplorerFilters = forwardRef<HTMLDivElement, object>((_, ref) => {
 });
 ExplorerFilters.displayName = 'ExplorerFilters';
 
-function AddPlaceForm({ onAddPlace }: { onAddPlace: (place: Place) => void }) {
+interface AddPlaceFormProps {
+  onAddPlace: (place: Place) => void;
+  addedPlacesCount: number;
+  onClearAll: () => void;
+}
+
+function AddPlaceForm({ onAddPlace, addedPlacesCount, onClearAll }: AddPlaceFormProps) {
   const [name, setName] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
 
@@ -326,7 +353,17 @@ function AddPlaceForm({ onAddPlace }: { onAddPlace: (place: Place) => void }) {
 
   return (
     <div className="mb-6 p-4 border border-border rounded-xl bg-card">
-      <h4 className="font-serif text-lg mb-3">Add a Place</h4>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-serif text-lg">Add a Place</h4>
+        {addedPlacesCount > 0 && (
+          <button
+            onClick={onClearAll}
+            className="text-xs text-destructive hover:text-destructive/80 transition-colors"
+          >
+            Clear all my places ({addedPlacesCount})
+          </button>
+        )}
+      </div>
       <div className="flex gap-3 flex-wrap items-end">
         <div className="flex-1 min-w-[200px]">
           <input
@@ -385,6 +422,14 @@ function NeighborhoodsView() {
   const handleAddPlace = (place: Place) => {
     setAddedPlaces(prev => [...prev, place]);
   };
+
+  const handleRemovePlace = (placeId: string) => {
+    setAddedPlaces(prev => prev.filter(p => p.id !== placeId));
+  };
+
+  const handleClearAll = () => {
+    setAddedPlaces([]);
+  };
   
   return (
     <div 
@@ -400,7 +445,11 @@ function NeighborhoodsView() {
         <p className="text-muted-foreground mb-8">Discover places across Paris neighborhoods</p>
         
         {/* Add Place Form */}
-        <AddPlaceForm onAddPlace={handleAddPlace} />
+        <AddPlaceForm 
+          onAddPlace={handleAddPlace} 
+          addedPlacesCount={addedPlaces.length}
+          onClearAll={handleClearAll}
+        />
         
         {/* Search Bar */}
         <div className="mb-6">
@@ -444,7 +493,11 @@ function NeighborhoodsView() {
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
                 {places.map((place) => (
-                  <PlaceCard key={place.id} place={place} />
+                  <PlaceCard 
+                    key={place.id} 
+                    place={place} 
+                    onRemove={place.id.startsWith('place-user-') ? () => handleRemovePlace(place.id) : undefined}
+                  />
                 ))}
               </div>
             </div>
