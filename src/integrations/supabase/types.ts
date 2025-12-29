@@ -461,6 +461,17 @@ export type Database = {
         }
       }
       generate_trip_days: { Args: { p_trip_id: string }; Returns: undefined }
+      get_invitation_by_token: {
+        Args: { _token: string }
+        Returns: {
+          accepted_at: string
+          email: string
+          expires_at: string
+          id: string
+          role: Database["public"]["Enums"]["collaborator_role"]
+          trip_id: string
+        }[]
+      }
       get_shared_trip_user_ids: {
         Args: { _user_id: string }
         Returns: string[]
