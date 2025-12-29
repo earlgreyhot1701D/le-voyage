@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { Tables } from '@/integrations/supabase/types';
+import { supabase } from '@/integrations/supabase/client';
 
 type Place = Tables<'places'>;
 
@@ -31,22 +32,44 @@ export function TripMap({ places, center, className, onMarkerClick }: TripMapPro
   const markers = useRef<mapboxgl.Marker[]>([]);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [tokenError, setTokenError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch token from Supabase secrets (stored as env var in edge function context)
-  // For client-side, we'll check for the token in the window or use a placeholder
+  // Fetch token from edge function (backed by Supabase secrets)
   useEffect(() => {
-    // The token should be available from Supabase Edge Function secrets
-    // For now, check localStorage or prompt user
-    const storedToken = localStorage.getItem('MAPBOX_PUBLIC_TOKEN');
-    if (storedToken) {
-      setMapboxToken(storedToken);
-    } else {
-      // Try to get it from a meta tag or global (set by backend)
-      const metaToken = document.querySelector('meta[name="mapbox-token"]')?.getAttribute('content');
-      if (metaToken) {
-        setMapboxToken(metaToken);
+    const fetchToken = async () => {
+      // First check localStorage cache
+      const cachedToken = localStorage.getItem('MAPBOX_PUBLIC_TOKEN');
+      if (cachedToken) {
+        setMapboxToken(cachedToken);
+        setIsLoading(false);
+        return;
       }
-    }
+
+      try {
+        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+        
+        if (error) {
+          console.error('Error fetching Mapbox token:', error);
+          setTokenError('Failed to load map configuration');
+          setIsLoading(false);
+          return;
+        }
+
+        if (data?.token) {
+          localStorage.setItem('MAPBOX_PUBLIC_TOKEN', data.token);
+          setMapboxToken(data.token);
+        } else {
+          setTokenError('Mapbox token not configured');
+        }
+      } catch (err) {
+        console.error('Error fetching Mapbox token:', err);
+        setTokenError('Failed to load map');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchToken();
   }, []);
 
   useEffect(() => {
@@ -177,12 +200,25 @@ export function TripMap({ places, center, className, onMarkerClick }: TripMapPro
     }
   };
 
-  // Token input for when token is not set
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className={`relative rounded-2xl overflow-hidden bg-muted ${className}`}>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="animate-pulse text-muted-foreground text-sm">Loading map...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Token not available - show fallback input
   if (!mapboxToken) {
     return (
       <div className={`relative rounded-2xl overflow-hidden bg-muted ${className}`}>
         <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
-          <p className="text-sm text-muted-foreground mb-3">Enter your Mapbox public token to enable the map</p>
+          <p className="text-sm text-muted-foreground mb-3">
+            {tokenError || 'Enter your Mapbox public token to enable the map'}
+          </p>
           <input
             type="text"
             placeholder="pk.eyJ1..."
@@ -193,6 +229,7 @@ export function TripMap({ places, center, className, onMarkerClick }: TripMapPro
                 if (token.startsWith('pk.')) {
                   localStorage.setItem('MAPBOX_PUBLIC_TOKEN', token);
                   setMapboxToken(token);
+                  setTokenError(null);
                 }
               }
             }}
