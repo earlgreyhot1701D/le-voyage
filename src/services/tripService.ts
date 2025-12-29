@@ -6,6 +6,20 @@ export type TripInsert = TablesInsert<'trips'>;
 export type TripUpdate = TablesUpdate<'trips'>;
 export type TripDay = Tables<'trip_days'>;
 export type TripCollaborator = Tables<'trip_collaborators'>;
+export type Invitation = Tables<'invitations'>;
+
+export interface CollaboratorWithProfile extends TripCollaborator {
+  profiles: {
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
+}
+
+export interface InvitationWithInviter extends Invitation {
+  profiles: {
+    display_name: string | null;
+  } | null;
+}
 
 export const tripService = {
   // Fetch all trips the current user has access to
@@ -106,5 +120,125 @@ export const tripService = {
 
     if (error) throw error;
     return data || [];
+  },
+
+  // ============= COLLABORATION METHODS =============
+
+  // Get all collaborators for a trip with their profile info
+  async getCollaborators(tripId: string): Promise<CollaboratorWithProfile[]> {
+    const { data, error } = await supabase
+      .from('trip_collaborators')
+      .select(`
+        *,
+        profiles:user_id (display_name, avatar_url)
+      `)
+      .eq('trip_id', tripId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return (data || []) as CollaboratorWithProfile[];
+  },
+
+  // Get pending invitations for a trip
+  async getInvitations(tripId: string): Promise<InvitationWithInviter[]> {
+    const { data, error } = await supabase
+      .from('invitations')
+      .select(`
+        *,
+        profiles:invited_by (display_name)
+      `)
+      .eq('trip_id', tripId)
+      .is('accepted_at', null)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []) as InvitationWithInviter[];
+  },
+
+  // Invite a collaborator by email
+  async inviteCollaborator(
+    tripId: string, 
+    email: string, 
+    role: 'viewer' | 'editor'
+  ): Promise<Invitation> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('invitations')
+      .insert({
+        trip_id: tripId,
+        email: email.toLowerCase().trim(),
+        role,
+        invited_by: user.id,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') {
+        throw new Error('This email has already been invited');
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  // Remove an invitation
+  async removeInvitation(invitationId: string): Promise<void> {
+    const { error } = await supabase
+      .from('invitations')
+      .delete()
+      .eq('id', invitationId);
+
+    if (error) throw error;
+  },
+
+  // Remove a collaborator from a trip
+  async removeCollaborator(tripId: string, userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('trip_collaborators')
+      .delete()
+      .eq('trip_id', tripId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  },
+
+  // Update a collaborator's role
+  async updateCollaboratorRole(
+    tripId: string, 
+    userId: string, 
+    role: 'editor' | 'viewer'
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('trip_collaborators')
+      .update({ role })
+      .eq('trip_id', tripId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  },
+
+  // Get invitation by token (for accept flow)
+  async getInvitationByToken(token: string): Promise<Invitation | null> {
+    const { data, error } = await supabase
+      .from('invitations')
+      .select('*')
+      .eq('token', token)
+      .is('accepted_at', null)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Accept an invitation
+  async acceptInvitation(token: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .rpc('accept_invitation', { p_token: token });
+
+    if (error) throw error;
+    return data as boolean;
   },
 };

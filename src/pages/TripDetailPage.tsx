@@ -6,7 +6,7 @@ import { RightPanel } from '@/components/layout/RightPanel';
 import { useTrip, useTripDays, useItineraryItems, useInsights } from '@/hooks/useTrips';
 import { usePlaces, useCreatePlace, useDeletePlace } from '@/hooks/usePlaces';
 import { useTripPermissions } from '@/hooks/useTripPermissions';
-import { EditTripModal } from '@/components/trips/EditTripModal';
+import { EditTripModal, CollaboratorsModal } from '@/components/trips';
 import type { Tables } from '@/integrations/supabase/types';
 
 type TripDay = Tables<'trip_days'>;
@@ -677,6 +677,13 @@ export default function TripDetailPage() {
         trip={trip} 
         open={editModalOpen} 
         onOpenChange={setEditModalOpen} 
+      />
+      
+      {/* Collaborators Modal */}
+      <CollaboratorsModal
+        tripId={trip.id}
+        open={collaboratorsModalOpen}
+        onOpenChange={setCollaboratorsModalOpen}
       />
     </AppShell>
   );
