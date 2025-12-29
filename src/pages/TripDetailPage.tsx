@@ -276,30 +276,68 @@ function groupPlacesByArea(places: Place[]) {
 interface PlaceCardProps {
   place: Place;
   onRemove?: () => void;
+  onAddToItinerary?: () => void;
 }
 
-const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove }, ref) => {
+const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove, onAddToItinerary }, ref) => {
+  // Generate Google Maps URL for the place
+  const getGoogleMapsUrl = () => {
+    if (place.latitude && place.longitude) {
+      return `https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}`;
+    }
+    // Fallback to name search
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name)}`;
+  };
+
   return (
-    <div ref={ref} className="content-card hover:shadow-md transition-shadow cursor-pointer group relative">
-      {/* Remove button */}
-      {onRemove && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors flex items-center justify-center text-xs font-medium opacity-0 group-hover:opacity-100"
-          title="Remove place"
-        >
-          ✕
-        </button>
-      )}
+    <div ref={ref} className="content-card hover:shadow-md transition-shadow group relative">
+      {/* Action buttons */}
+      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onAddToItinerary && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToItinerary();
+            }}
+            className="w-7 h-7 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center text-xs font-medium"
+            title="Add to itinerary"
+          >
+            +
+          </button>
+        )}
+        {onRemove && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="w-7 h-7 rounded-full bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors flex items-center justify-center text-xs font-medium"
+            title="Remove place"
+          >
+            ✕
+          </button>
+        )}
+      </div>
       
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="font-serif text-xl font-semibold text-card-foreground group-hover:text-primary transition-colors">
+          <a 
+            href={getGoogleMapsUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="font-serif text-xl font-semibold text-card-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5 group/link"
+          >
             {place.name}
-          </h3>
+            <svg 
+              className="w-4 h-4 opacity-0 group-hover/link:opacity-100 transition-opacity" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
           <p className="text-sm text-muted-foreground">{place.neighborhood_name}</p>
         </div>
         {place.rating && (
@@ -338,31 +376,68 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove 
 });
 PlaceCard.displayName = 'PlaceCard';
 
-const CATEGORIES = ['Food and Drink', 'Museum', 'Attraction', 'Experience'] as const;
+const CATEGORIES = ['Food and Drink', 'Museum', 'Attraction', 'Experience', 'Shopping', 'Lodging', 'Transit', 'Day Trip', 'Other'] as const;
 
 interface ExplorerFiltersProps {
   selectedCategories: string[];
   onCategoryChange: (category: string) => void;
   onClearFilters: () => void;
+  arrondissements: string[];
+  selectedArrondissement: string;
+  onArrondissementChange: (arr: string) => void;
+  minRating: number;
+  onMinRatingChange: (rating: number) => void;
+  showMap: boolean;
+  onToggleMap: () => void;
 }
 
 const ExplorerFilters = forwardRef<HTMLDivElement, ExplorerFiltersProps>(
-  ({ selectedCategories, onCategoryChange, onClearFilters }, ref) => {
-    const hasActiveFilters = selectedCategories.length > 0;
+  ({ 
+    selectedCategories, 
+    onCategoryChange, 
+    onClearFilters, 
+    arrondissements,
+    selectedArrondissement,
+    onArrondissementChange,
+    minRating,
+    onMinRatingChange,
+    showMap,
+    onToggleMap
+  }, ref) => {
+    const hasActiveFilters = selectedCategories.length > 0 || selectedArrondissement !== 'All' || minRating > 0;
     
     return (
       <div ref={ref}>
         <RightPanel title="Filters">
           <div className="space-y-6">
+            {/* Map Toggle */}
+            <div>
+              <button
+                onClick={onToggleMap}
+                className={`w-full p-3 rounded-lg border transition-colors flex items-center justify-center gap-2 ${
+                  showMap 
+                    ? 'bg-primary text-primary-foreground border-primary' 
+                    : 'bg-background text-foreground border-border hover:border-primary/50'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                {showMap ? 'Hide Map' : 'Show Map'}
+              </button>
+            </div>
+
             <div>
               <label className="block text-sm font-medium mb-2">Arrondissement</label>
-              <select className="w-full p-2 rounded-lg border border-border bg-background text-foreground">
-                <option>All</option>
-                <option>4th</option>
-                <option>6th</option>
-                <option>7th</option>
-                <option>12th</option>
-                <option>18th</option>
+              <select 
+                value={selectedArrondissement}
+                onChange={(e) => onArrondissementChange(e.target.value)}
+                className="w-full p-2 rounded-lg border border-border bg-background text-foreground"
+              >
+                <option value="All">All</option>
+                {arrondissements.map(arr => (
+                  <option key={arr} value={arr}>{arr}</option>
+                ))}
               </select>
             </div>
 
@@ -374,11 +449,11 @@ const ExplorerFilters = forwardRef<HTMLDivElement, ExplorerFiltersProps>(
                     onClick={onClearFilters}
                     className="text-xs text-primary hover:text-primary/80 transition-colors"
                   >
-                    Clear
+                    Clear All
                   </button>
                 )}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-48 overflow-y-auto">
                 {CATEGORIES.map((cat) => (
                   <label key={cat} className="flex items-center gap-2 cursor-pointer group">
                     <input 
@@ -394,26 +469,22 @@ const ExplorerFilters = forwardRef<HTMLDivElement, ExplorerFiltersProps>(
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Rating</label>
+              <label className="block text-sm font-medium mb-2">
+                Minimum Rating: {minRating === 0 ? 'Any' : `${minRating}+`}
+              </label>
               <input
                 type="range"
                 min="0"
                 max="5"
                 step="0.5"
-                defaultValue="0"
-                className="w-full"
+                value={minRating}
+                onChange={(e) => onMinRatingChange(parseFloat(e.target.value))}
+                className="w-full accent-primary"
               />
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
                 <span>Any</span>
                 <span>5 Stars</span>
               </div>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-6 border-t border-border">
-            <h3 className="font-serif font-semibold mb-3">AI Insights</h3>
-            <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-              <p>AI-powered neighborhood insights coming in Phase 2.</p>
             </div>
           </div>
         </RightPanel>
@@ -522,6 +593,11 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showManualAdd, setShowManualAdd] = useState(false);
   
+  // New filter states
+  const [selectedArrondissement, setSelectedArrondissement] = useState('All');
+  const [minRating, setMinRating] = useState(0);
+  const [showMap, setShowMap] = useState(false);
+  
   // Google Places search
   const { results: searchResults, isSearching, search, clearResults } = usePlaceSearch();
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -597,18 +673,21 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
     }
   }, [tripId, createPlace, clearResults]);
   
-  // Get unique neighborhoods from places
+  // Get unique neighborhoods and arrondissements from places
   const neighborhoods = [...new Set(places.map(p => p.neighborhood_name).filter(Boolean))] as string[];
+  const arrondissements = [...new Set(places.map(p => p.arrondissement).filter(Boolean))].sort() as string[];
   
-  // Filter places by search query and category (when not showing Google results)
+  // Filter places by search query, category, arrondissement, and rating
   const filteredPlaces = places.filter(place => {
     const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(place.category);
     const matchesSearch = !searchQuery.trim() || searchResults.length > 0 || 
       place.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       place.neighborhood_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       place.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesArrondissement = selectedArrondissement === 'All' || place.arrondissement === selectedArrondissement;
+    const matchesRating = minRating === 0 || (place.rating !== null && place.rating >= minRating);
     
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesSearch && matchesArrondissement && matchesRating;
   });
   
   const groupedPlaces = groupPlacesByArea(filteredPlaces);
@@ -632,6 +711,8 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
 
   const handleClearFilters = () => {
     setSelectedCategories([]);
+    setSelectedArrondissement('All');
+    setMinRating(0);
   };
   
   const handleAddToItinerary = (place: Place) => {
@@ -722,6 +803,16 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
           )}
         </div>
 
+        {/* Map View */}
+        {showMap && filteredPlaces.length > 0 && (
+          <div className="mb-6">
+            <TripMap 
+              places={filteredPlaces}
+              className="h-[300px] rounded-xl overflow-hidden"
+            />
+          </div>
+        )}
+
         {/* Loading state */}
         {isLoading && (
           <div className="text-center py-12 text-muted-foreground">
@@ -736,8 +827,10 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
               No places found
               {searchQuery && ` matching "${searchQuery}"`}
               {selectedCategories.length > 0 && ` in ${selectedCategories.join(', ')}`}
+              {selectedArrondissement !== 'All' && ` in ${selectedArrondissement}`}
+              {minRating > 0 && ` with ${minRating}+ stars`}
             </p>
-            {(searchQuery || selectedCategories.length > 0) && (
+            {(searchQuery || selectedCategories.length > 0 || selectedArrondissement !== 'All' || minRating > 0) && (
               <button 
                 onClick={() => { setSearchQuery(''); handleClearFilters(); }}
                 className="mt-2 text-primary hover:text-primary/80 text-sm"
@@ -758,6 +851,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
                     key={place.id} 
                     place={place} 
                     onRemove={() => handleRemovePlace(place.id)}
+                    onAddToItinerary={() => handleAddToItinerary(place)}
                   />
                 ))}
               </div>
@@ -783,6 +877,13 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
           selectedCategories={selectedCategories}
           onCategoryChange={handleCategoryChange}
           onClearFilters={handleClearFilters}
+          arrondissements={arrondissements}
+          selectedArrondissement={selectedArrondissement}
+          onArrondissementChange={setSelectedArrondissement}
+          minRating={minRating}
+          onMinRatingChange={setMinRating}
+          showMap={showMap}
+          onToggleMap={() => setShowMap(!showMap)}
         />
       </aside>
       
@@ -843,9 +944,9 @@ export default function TripDetailPage() {
         onCollaboratorsClick={() => setCollaboratorsModalOpen(true)}
       />
       
-      {view === 'neighborhoods' 
-        ? <NeighborhoodsView tripId={trip.id} tripTitle={trip.title} destination={trip.destination} /> 
-        : <ItineraryView tripId={trip.id} />
+      {view === 'itinerary' 
+        ? <ItineraryView tripId={trip.id} />
+        : <NeighborhoodsView tripId={trip.id} tripTitle={trip.title} destination={trip.destination} />
       }
       
       {/* Edit Trip Modal */}
