@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 // Allowed origins for CORS
 const ALLOWED_ORIGIN_PATTERNS = [
@@ -30,22 +31,25 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-interface Place {
-  id: string;
-  name: string;
-  category: string;
-  arrondissement?: string;
-  neighborhood_name?: string;
-  rating?: number;
-}
+// Input validation schema
+const PlaceSchema = z.object({
+  id: z.string().max(100),
+  name: z.string().max(500),
+  category: z.string().max(100),
+  arrondissement: z.string().max(100).optional(),
+  neighborhood_name: z.string().max(200).optional(),
+  rating: z.number().min(0).max(5).optional(),
+});
 
-interface GenerateInsightsRequest {
-  tripId: string;
-  neighborhoodFocus: string;
-  places: Place[];
-  tripTitle?: string;
-  destination?: string;
-}
+const GenerateInsightsSchema = z.object({
+  tripId: z.string().uuid(),
+  neighborhoodFocus: z.string().max(200),
+  places: z.array(PlaceSchema).min(1).max(100),
+  tripTitle: z.string().max(200).optional(),
+  destination: z.string().max(200).optional(),
+});
+
+type Place = z.infer<typeof PlaceSchema>;
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -65,32 +69,28 @@ serve(async (req) => {
   try {
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicApiKey) {
-      console.error('ANTHROPIC_API_KEY not configured');
+      console.error('[generate-insights] ANTHROPIC_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'Service temporarily unavailable' }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Parse and validate input
     const body = await req.json();
-    const { tripId, neighborhoodFocus, places, tripTitle, destination }: GenerateInsightsRequest = body;
+    const parseResult = GenerateInsightsSchema.safeParse(body);
     
-    // Input validation
-    if (!tripId || typeof tripId !== 'string') {
+    if (!parseResult.success) {
+      console.warn('[generate-insights] Invalid input:', parseResult.error.message);
       return new Response(
-        JSON.stringify({ error: 'Invalid request' }),
+        JSON.stringify({ error: 'Invalid input parameters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[generate-insights] Trip ${tripId}, neighborhood: ${neighborhoodFocus}, places: ${places?.length || 0}`);
+    const { tripId, neighborhoodFocus, places, tripTitle, destination } = parseResult.data;
 
-    if (!places || places.length === 0) {
-      return new Response(
-        JSON.stringify({ insights: [], message: 'No places to analyze' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    console.log(`[generate-insights] Trip ${tripId}, neighborhood: ${neighborhoodFocus}, places: ${places.length}`);
 
     // Group places by category for analysis
     const placesByCategory: Record<string, Place[]> = {};
