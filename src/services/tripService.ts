@@ -141,18 +141,30 @@ export const tripService = {
 
   // Get pending invitations for a trip
   async getInvitations(tripId: string): Promise<InvitationWithInviter[]> {
-    const { data, error } = await supabase
+    // Query invitations without profile join to avoid auth.users access issue
+    const { data: invitations, error } = await supabase
       .from('invitations')
-      .select(`
-        *,
-        profiles:invited_by (display_name)
-      `)
+      .select('*')
       .eq('trip_id', tripId)
       .is('accepted_at', null)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data || []) as InvitationWithInviter[];
+    if (!invitations || invitations.length === 0) return [];
+
+    // Fetch inviter profiles separately
+    const inviterIds = [...new Set(invitations.map(inv => inv.invited_by))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, display_name')
+      .in('id', inviterIds);
+
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+    return invitations.map(inv => ({
+      ...inv,
+      profiles: profileMap.get(inv.invited_by) || null,
+    })) as InvitationWithInviter[];
   },
 
   // Invite a collaborator by email
@@ -220,13 +232,10 @@ export const tripService = {
     if (error) throw error;
   },
 
-  // Get invitation by token (for accept flow)
-  async getInvitationByToken(token: string): Promise<Invitation | null> {
+  // Get invitation by token (for accept flow) using SECURITY DEFINER function
+  async getInvitationByToken(token: string): Promise<Partial<Invitation> | null> {
     const { data, error } = await supabase
-      .from('invitations')
-      .select('*')
-      .eq('token', token)
-      .is('accepted_at', null)
+      .rpc('get_invitation_by_token', { _token: token })
       .maybeSingle();
 
     if (error) throw error;
