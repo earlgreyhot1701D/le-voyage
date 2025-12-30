@@ -2,13 +2,65 @@ import { useState } from 'react';
 import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { NavSection } from '../navigation/NavSection';
 import { NavItem } from '../navigation/NavItem';
-
 import { CreateTripModal } from '../trips/CreateTripModal';
-import { Plus, Map, Compass, Wallet, Mail, Shield, Home } from 'lucide-react';
+import { Plus, Map, Compass, Wallet, Mail, Shield, Home, MapPin, Calendar } from 'lucide-react';
+import { useTrip } from '@/hooks/useTrips';
+import { format } from 'date-fns';
+import { Skeleton } from '../ui/skeleton';
 import { Button } from '../ui/button';
 
 interface SidebarProps {
   onNavigate?: () => void;
+}
+
+function CurrentTripCard({ tripId, onNavigate }: { tripId: string; onNavigate?: () => void }) {
+  const { data: trip, isLoading } = useTrip(tripId);
+  const navigate = useNavigate();
+  
+  if (isLoading) {
+    return (
+      <div className="mb-6 p-3 rounded-lg bg-sidebar-accent/30 border border-sidebar-border">
+        <Skeleton className="h-4 w-3/4 mb-2 bg-sidebar-accent/50" />
+        <Skeleton className="h-3 w-1/2 mb-1 bg-sidebar-accent/50" />
+        <Skeleton className="h-3 w-2/3 bg-sidebar-accent/50" />
+      </div>
+    );
+  }
+  
+  if (!trip) return null;
+  
+  const formatDateRange = () => {
+    if (!trip.start_date || !trip.end_date) return 'Dates not set';
+    const start = format(new Date(trip.start_date), 'MMM d');
+    const end = format(new Date(trip.end_date), 'MMM d, yyyy');
+    return `${start} - ${end}`;
+  };
+  
+  return (
+    <button
+      onClick={() => {
+        navigate(`/trip/${tripId}?view=neighborhoods`);
+        onNavigate?.();
+      }}
+      className="mb-6 w-full p-3 rounded-lg bg-sidebar-accent/30 border border-sidebar-border hover:bg-sidebar-accent/50 transition-colors text-left group"
+    >
+      <div className="flex items-start gap-2">
+        <MapPin className="h-4 w-4 text-sidebar-primary mt-0.5 flex-shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-sidebar-foreground truncate group-hover:text-sidebar-primary transition-colors">
+            {trip.title}
+          </p>
+          <p className="text-xs text-sidebar-foreground/60 truncate">
+            {trip.destination}
+          </p>
+          <div className="flex items-center gap-1 mt-1 text-xs text-sidebar-foreground/50">
+            <Calendar className="h-3 w-3" />
+            <span>{formatDateRange()}</span>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
 }
 
 export function Sidebar({ onNavigate }: SidebarProps) {
@@ -100,12 +152,15 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         {/* New Trip Button */}
         <Button
           onClick={() => setShowCreateModal(true)}
-          className="mb-8 w-full gap-2"
+          className="mb-6 w-full gap-2"
           variant="default"
         >
           <Plus className="h-4 w-4" />
           New Trip
         </Button>
+        
+        {/* Current Trip Card - only show when in a trip */}
+        {inTrip && <CurrentTripCard tripId={tripId} onNavigate={onNavigate} />}
         
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto scrollbar-thin">
