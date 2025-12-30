@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/common";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { FIXTURE_TRIP_ID } from "@/config/constants";
 import Index from "./pages/Index";
 import TripDetailPage from "./pages/TripDetailPage";
 import AuthPage from "./pages/AuthPage";
@@ -27,8 +26,8 @@ const App = () => (
             <Route path="/trips" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/trip/:tripId" element={<ProtectedRoute><TripDetailPage /></ProtectedRoute>} />
             <Route path="/invite/:token" element={<ProtectedRoute><AcceptInvitePage /></ProtectedRoute>} />
-            <Route path="/planner" element={<Navigate to={`/trip/${FIXTURE_TRIP_ID}`} replace />} />
-            <Route path="/neighborhoods" element={<Navigate to={`/trip/${FIXTURE_TRIP_ID}?view=neighborhoods`} replace />} />
+            <Route path="/planner" element={<Navigate to="/" replace />} />
+            <Route path="/neighborhoods" element={<Navigate to="/" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
