@@ -135,9 +135,9 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
   return (
     <>
-      <aside className="w-sidebar flex-shrink-0 bg-sidebar text-sidebar-foreground flex flex-col h-full px-5 py-10 border-r-2 border-sidebar-border">
+      <aside className="w-sidebar flex-shrink-0 bg-sidebar text-sidebar-foreground flex flex-col h-full px-5 py-6 border-r-2 border-sidebar-border">
         {/* Logo - clickable, links to home */}
-        <div className="mb-8 text-center">
+        <div className="mb-4 text-center">
           <Link 
             to="/" 
             className="inline-block hover:opacity-80 transition-opacity"
@@ -152,7 +152,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         {/* New Trip Button */}
         <Button
           onClick={() => setShowCreateModal(true)}
-          className="mb-6 w-full gap-2"
+          className="mb-4 w-full gap-2"
           variant="default"
         >
           <Plus className="h-4 w-4" />
