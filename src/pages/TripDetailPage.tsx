@@ -826,26 +826,26 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
     >
       {/* Main Content */}
       <section className="content-card">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="font-serif text-[32px]">Neighborhood Explorer</h2>
-            <p className="text-muted-foreground">
-              {places.length} place{places.length !== 1 ? 's' : ''} saved
-            </p>
-          </div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-serif text-[32px]">
+            Neighborhood Explorer
+            <span className="text-lg font-sans text-muted-foreground ml-2">
+              ({places.length})
+            </span>
+          </h2>
         </div>
         
         {/* Search Bar - Primary Action */}
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="relative">
             <input
               type="text"
               placeholder="Search places to add (e.g., Louvre Museum, Café de Flore...)"
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full p-4 pl-12 rounded-xl border-2 border-primary/30 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full p-3 pl-10 rounded-xl border border-primary/30 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary text-sm">
               🔍
             </span>
             {searchQuery && (
@@ -867,7 +867,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
           </div>
           
           {/* Status and manual add option */}
-          <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center justify-between mt-1.5">
             <p className="text-sm text-muted-foreground">
               {isSearching ? (
                 'Searching Google Places...'
