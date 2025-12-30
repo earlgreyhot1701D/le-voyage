@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { NavSection } from '../navigation/NavSection';
 import { NavItem } from '../navigation/NavItem';
-import { CurrentLocation } from '../navigation/CurrentLocation';
+
 import { CreateTripModal } from '../trips/CreateTripModal';
 import { Plus, Map, Compass, Wallet, Mail, Shield, Home } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -142,13 +142,6 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             </NavSection>
           ))}
         </nav>
-        
-        {/* Currently In - at bottom, only show when in a trip */}
-        {inTrip && (
-          <CurrentLocation 
-            neighborhood="Saint-Germain-des-Prés" 
-          />
-        )}
       </aside>
       
       <CreateTripModal 

@@ -22,14 +22,7 @@ export function TopBar({
   onCollaboratorsClick 
 }: TopBarProps) {
   return (
-    <div className="px-10 py-8 flex justify-between items-center">
-      <div className="search-container">
-        <span>🔍</span>
-        <input 
-          type="text" 
-          placeholder="Search museums, bistros, or metro lines..." 
-        />
-      </div>
+    <div className="px-10 py-8 flex justify-end items-center">
       <div className="flex items-center gap-3">
         <span className="text-sm font-semibold mr-2">{date}</span>
         
