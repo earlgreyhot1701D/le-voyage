@@ -8,9 +8,10 @@ interface NavItemProps {
   isActive: boolean;
   disabled?: boolean;
   comingSoon?: boolean;
+  onClick?: () => void;
 }
 
-export function NavItem({ icon: Icon, label, path, isActive, disabled, comingSoon }: NavItemProps) {
+export function NavItem({ icon: Icon, label, path, isActive, disabled, comingSoon, onClick }: NavItemProps) {
   const itemClasses = `nav-item ${isActive ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
   
   const renderIcon = () => {
@@ -40,7 +41,7 @@ export function NavItem({ icon: Icon, label, path, isActive, disabled, comingSoo
   }
 
   return (
-    <Link to={path} className={itemClasses}>
+    <Link to={path} className={itemClasses} onClick={onClick}>
       {content}
     </Link>
   );

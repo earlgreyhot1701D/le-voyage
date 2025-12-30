@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { NavSection } from '../navigation/NavSection';
 import { NavItem } from '../navigation/NavItem';
 import { CurrentLocation } from '../navigation/CurrentLocation';
@@ -7,8 +7,13 @@ import { CreateTripModal } from '../trips/CreateTripModal';
 import { Plus, Map, Compass, Wallet, Mail, Shield, Home } from 'lucide-react';
 import { Button } from '../ui/button';
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { tripId } = useParams<{ tripId: string }>();
   const [showCreateModal, setShowCreateModal] = useState(false);
   
@@ -17,6 +22,14 @@ export function Sidebar() {
   const view = searchParams.get('view');
   const isHomePage = location.pathname === '/';
   const inTrip = location.pathname.startsWith('/trip/') && tripId;
+  
+  // Handle navigation with callback for mobile drawer
+  const handleNavigation = (path: string | null) => {
+    if (path) {
+      navigate(path);
+      onNavigate?.();
+    }
+  };
   
   // Trip-specific navigation (only shown when viewing a trip)
   const TRIP_NAV_SECTIONS = [
@@ -73,7 +86,11 @@ export function Sidebar() {
       <aside className="w-sidebar flex-shrink-0 bg-sidebar text-sidebar-foreground flex flex-col h-full px-5 py-10 border-r-2 border-sidebar-border">
         {/* Logo - clickable, links to home */}
         <div className="mb-8 text-center">
-          <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
+          <Link 
+            to="/" 
+            className="inline-block hover:opacity-80 transition-opacity"
+            onClick={() => onNavigate?.()}
+          >
             <h1 className="font-serif text-[38px] italic text-sidebar-primary">
               Le Voyage
             </h1>
@@ -99,6 +116,7 @@ export function Sidebar() {
               label="My Trips"
               path="/"
               isActive={isHomePage}
+              onClick={() => handleNavigation('/')}
             />
           </NavSection>
           
@@ -118,6 +136,7 @@ export function Sidebar() {
                   isActive={item.isActive}
                   disabled={item.disabled}
                   comingSoon={item.comingSoon}
+                  onClick={() => handleNavigation(item.path)}
                 />
               ))}
             </NavSection>
@@ -132,7 +151,13 @@ export function Sidebar() {
         )}
       </aside>
       
-      <CreateTripModal open={showCreateModal} onOpenChange={setShowCreateModal} />
+      <CreateTripModal 
+        open={showCreateModal} 
+        onOpenChange={(open) => {
+          setShowCreateModal(open);
+          if (!open) onNavigate?.();
+        }} 
+      />
     </>
   );
 }
