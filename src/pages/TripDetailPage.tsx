@@ -5,7 +5,7 @@ import { AppShell } from '@/components/layout';
 import { TopBar } from '@/components/layout/TopBar';
 import { RightPanel } from '@/components/layout/RightPanel';
 import { useTrip, useTripDays, useItineraryItems, useInsights } from '@/hooks/useTrips';
-import { usePlaces, useCreatePlace, useDeletePlace } from '@/hooks/usePlaces';
+import { usePlaces, useCreatePlace, useDeletePlace, useUpdatePlace } from '@/hooks/usePlaces';
 import { useTripPermissions } from '@/hooks/useTripPermissions';
 import { useAIInsights } from '@/hooks/useAIInsights';
 import { usePlaceSearch } from '@/hooks/usePlaceSearch';
@@ -278,13 +278,28 @@ interface PlaceCardProps {
   place: Place;
   onRemove?: () => void;
   onAddToItinerary?: () => void;
+  onUpdateNotes?: (notes: string) => void;
+  canEdit?: boolean;
 }
 
-const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove, onAddToItinerary }, ref) => {
+const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove, onAddToItinerary, onUpdateNotes, canEdit }, ref) => {
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState(place.notes || '');
+
   // Generate Google Search URL for researching the place
   const getSearchUrl = () => {
     const searchQuery = `${place.name} ${place.neighborhood_name || 'Paris'}`;
     return `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+  };
+
+  const handleSaveNotes = () => {
+    onUpdateNotes?.(notesValue.trim());
+    setIsEditingNotes(false);
+  };
+
+  const handleCancelNotes = () => {
+    setNotesValue(place.notes || '');
+    setIsEditingNotes(false);
   };
 
   return (
@@ -385,6 +400,64 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
           </span>
         )}
       </div>
+      
+      {/* Personal Notes Section */}
+      {isEditingNotes ? (
+        <div className="mt-3 space-y-2">
+          <textarea
+            value={notesValue}
+            onChange={(e) => setNotesValue(e.target.value)}
+            placeholder="Add a personal note (e.g., why you want to visit, recommendations...)"
+            className="w-full p-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground resize-none"
+            rows={2}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSaveNotes();
+              }
+              if (e.key === 'Escape') {
+                handleCancelNotes();
+              }
+            }}
+          />
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={handleCancelNotes}
+              className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveNotes}
+              className="px-3 py-1 text-xs rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      ) : place.notes ? (
+        <div className="mt-3 group/notes">
+          <p className="text-sm italic text-muted-foreground leading-relaxed">
+            "{place.notes}"
+            {canEdit && (
+              <button
+                onClick={() => setIsEditingNotes(true)}
+                className="ml-2 opacity-0 group-hover/notes:opacity-100 text-xs text-primary hover:text-primary/80 transition-all"
+              >
+                Edit
+              </button>
+            )}
+          </p>
+        </div>
+      ) : canEdit ? (
+        <button
+          onClick={() => setIsEditingNotes(true)}
+          className="mt-3 text-xs text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+        >
+          + Add a note
+        </button>
+      ) : null}
       
       {/* Attribution */}
       {place.added_by_display_name && (
@@ -610,6 +683,8 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
   const { data: tripDays = [] } = useTripDays(tripId);
   const deletePlace = useDeletePlace(tripId);
   const createPlace = useCreatePlace();
+  const updatePlace = useUpdatePlace();
+  const { canEdit } = useTripPermissions(tripId);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showManualAdd, setShowManualAdd] = useState(false);
@@ -871,8 +946,10 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
                   <PlaceCard 
                     key={place.id} 
                     place={place} 
-                    onRemove={() => handleRemovePlace(place.id)}
-                    onAddToItinerary={() => handleAddToItinerary(place)}
+                    onRemove={canEdit ? () => handleRemovePlace(place.id) : undefined}
+                    onAddToItinerary={canEdit ? () => handleAddToItinerary(place) : undefined}
+                    onUpdateNotes={canEdit ? (notes) => updatePlace.mutate({ placeId: place.id, updates: { notes: notes || null } }) : undefined}
+                    canEdit={canEdit}
                   />
                 ))}
               </div>

@@ -206,6 +206,7 @@ export type Database = {
           longitude: number | null
           name: string
           neighborhood_name: string | null
+          notes: string | null
           rating: number | null
           trip_id: string
         }
@@ -221,6 +222,7 @@ export type Database = {
           longitude?: number | null
           name: string
           neighborhood_name?: string | null
+          notes?: string | null
           rating?: number | null
           trip_id: string
         }
@@ -236,6 +238,7 @@ export type Database = {
           longitude?: number | null
           name?: string
           neighborhood_name?: string | null
+          notes?: string | null
           rating?: number | null
           trip_id?: string
         }
