@@ -829,8 +829,8 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-serif text-[32px]">
             Neighborhood Explorer
-            <span className="text-lg font-sans text-muted-foreground ml-2">
-              ({places.length})
+            <span className="text-base font-sans font-normal text-muted-foreground ml-2">
+              ({places.length} place{places.length !== 1 ? 's' : ''} saved)
             </span>
           </h2>
         </div>
