@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Menu } from 'lucide-react';
 import { useTrip } from '@/hooks/useTrips';
+import { UserMenu } from '@/components/auth/UserMenu';
 
 interface AppShellProps {
   children: ReactNode;
@@ -21,12 +22,12 @@ export function AppShell({ children }: AppShellProps) {
       {/* Mobile: Sheet-based sidebar */}
       {isMobile ? (
         <>
-          {/* Floating menu bar with trip context */}
-          <div className="fixed top-4 left-4 right-4 z-50 flex items-center gap-3">
+          {/* Slim fixed header bar */}
+          <header className="fixed top-0 left-0 right-0 z-50 h-12 bg-sidebar/95 backdrop-blur-sm border-b border-sidebar-border flex items-center px-3 gap-3">
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
                 <button 
-                  className="w-10 h-10 rounded-full bg-sidebar border-2 border-sidebar-border shadow-lg flex items-center justify-center text-sidebar-foreground hover:bg-sidebar/90 transition-colors flex-shrink-0"
+                  className="w-9 h-9 rounded-lg bg-sidebar-accent/50 flex items-center justify-center text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
                   aria-label="Open menu"
                 >
                   <Menu className="w-5 h-5" />
@@ -37,18 +38,16 @@ export function AppShell({ children }: AppShellProps) {
               </SheetContent>
             </Sheet>
             
-            {/* Trip title - only show when viewing a trip */}
-            {trip && (
-              <div className="bg-sidebar/95 backdrop-blur-sm border-2 border-sidebar-border rounded-full px-4 py-2 shadow-lg max-w-[calc(100%-120px)]">
-                <p className="text-sm font-semibold text-sidebar-foreground truncate">
-                  {trip.title}
-                </p>
-              </div>
-            )}
-          </div>
+            {/* Trip title */}
+            <span className="font-semibold text-sm text-sidebar-foreground truncate flex-1">
+              {trip?.title || 'Le Voyage'}
+            </span>
+            
+            <UserMenu />
+          </header>
           
-          {/* Main Stage with top padding for menu bar */}
-          <main className="flex-1 flex flex-col overflow-hidden paper-texture pt-16">
+          {/* Main Stage with reduced top padding */}
+          <main className="flex-1 flex flex-col overflow-hidden paper-texture pt-12">
             {children}
           </main>
         </>

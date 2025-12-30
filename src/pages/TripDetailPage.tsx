@@ -1029,14 +1029,13 @@ export default function TripDetailPage() {
     );
   }
 
-  const tripDate = trip.start_date 
-    ? new Date(trip.start_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-    : 'Dates TBD';
+  const currentViewName = view === 'itinerary' ? 'Itinerary Builder' : 'Neighborhood Explorer';
 
   return (
     <AppShell>
       <TopBar 
-        date={tripDate} 
+        trip={trip}
+        currentView={currentViewName}
         canEdit={canEdit}
         onEditClick={() => setEditModalOpen(true)}
         onCollaboratorsClick={() => setCollaboratorsModalOpen(true)}

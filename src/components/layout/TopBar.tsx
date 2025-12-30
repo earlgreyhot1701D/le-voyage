@@ -1,30 +1,49 @@
 import { Pencil, Users } from 'lucide-react';
-import { fixtureTrip } from '@/data/fixtures';
 import { UserMenu } from '@/components/auth/UserMenu';
 import { Button } from '@/components/ui/button';
+import type { Tables } from '@/integrations/supabase/types';
 
 interface TopBarProps {
-  date?: string;
+  trip?: Tables<'trips'> | null;
+  currentView?: string;
   canEdit?: boolean;
   onEditClick?: () => void;
   onCollaboratorsClick?: () => void;
 }
 
-// Default to fixture trip date if not provided
-const defaultDate = fixtureTrip.start_date 
-  ? new Date(fixtureTrip.start_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  : 'April 2025';
-
 export function TopBar({ 
-  date = defaultDate, 
+  trip,
+  currentView,
   canEdit = false, 
   onEditClick, 
   onCollaboratorsClick 
 }: TopBarProps) {
+  const dateDisplay = trip?.start_date
+    ? new Date(trip.start_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : null;
+
   return (
-    <div className="px-10 py-8 flex justify-end items-center">
+    <div className="px-6 py-4 flex justify-between items-center">
+      {/* Left: Trip context */}
+      <div className="flex items-center gap-2">
+        {trip && (
+          <>
+            <h1 className="font-serif text-lg font-semibold">{trip.title}</h1>
+            {currentView && (
+              <>
+                <span className="text-muted-foreground">›</span>
+                <span className="text-sm text-muted-foreground">{currentView}</span>
+              </>
+            )}
+          </>
+        )}
+      </div>
+      
+      {/* Right: Actions */}
       <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold mr-2">{date}</span>
+        {dateDisplay && (
+          <span className="text-sm font-medium text-muted-foreground mr-1">{dateDisplay}</span>
+        )}
         
         {canEdit && onCollaboratorsClick && (
           <Button 
