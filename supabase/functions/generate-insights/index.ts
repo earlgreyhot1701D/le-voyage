@@ -36,9 +36,9 @@ const PlaceSchema = z.object({
   id: z.string().max(100),
   name: z.string().max(500),
   category: z.string().max(100),
-  arrondissement: z.string().max(100).optional(),
-  neighborhood_name: z.string().max(200).optional(),
-  rating: z.number().min(0).max(5).optional(),
+  arrondissement: z.string().max(100).nullable().optional(),
+  neighborhood_name: z.string().max(200).nullable().optional(),
+  rating: z.number().min(0).max(5).nullable().optional(),
 });
 
 const GenerateInsightsSchema = z.object({
