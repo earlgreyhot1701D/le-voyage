@@ -193,24 +193,24 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
                   <span>Invitation created for <strong>{newlyCreatedInvite.email}</strong></span>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Share this link with them:</Label>
-                  <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-                    <Link className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <code className="text-xs flex-1 truncate text-muted-foreground">
-                      {getInviteUrl(newlyCreatedInvite.token)}
-                    </code>
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-foreground">Share this link with them:</Label>
+                  <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg">
+                    <Link className="h-4 w-4 text-slate-500 shrink-0" />
+                    <span className="text-sm flex-1 truncate text-slate-600 dark:text-slate-300">
+                      {window.location.host}/accept-invite?token=...
+                    </span>
                   </div>
                   <div className="flex gap-2">
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
                       className="flex-1"
                       onClick={() => handleCopyInviteLink(newlyCreatedInvite.token)}
                     >
                       {copiedToken === newlyCreatedInvite.token ? (
                         <>
-                          <Check className="h-4 w-4 mr-1 text-green-500" />
+                          <Check className="h-4 w-4 mr-1" />
                           Copied!
                         </>
                       ) : (
@@ -221,7 +221,7 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
                       )}
                     </Button>
                     <Button
-                      variant="default"
+                      variant="outline"
                       size="sm"
                       className="flex-1"
                       onClick={() => handleShare(newlyCreatedInvite.token, newlyCreatedInvite.email)}
@@ -348,20 +348,20 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
               <p className="text-sm text-muted-foreground">Loading...</p>
             ) : (
               <div className="space-y-2">
-                {invitations.map((invite) => (
-                  <div 
-                    key={invite.id} 
-                    className="flex items-center justify-between p-2 rounded-lg bg-muted/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{invite.email}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Invited as {invite.role}
-                        </p>
+                  {invitations.map((invite) => (
+                    <div 
+                      key={invite.id} 
+                      className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                          <Mail className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{invite.email}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Invited as {invite.role}
+                          </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
