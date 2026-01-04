@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Mail, X, Crown, Pencil, Eye, Copy, Check } from 'lucide-react';
+import { Users, Mail, X, Crown, Pencil, Eye, Copy, Check, Share2, Link } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTripPermissions } from '@/hooks/useTripPermissions';
 import {
@@ -53,6 +53,9 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'viewer' | 'editor'>('viewer');
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [newlyCreatedInvite, setNewlyCreatedInvite] = useState<{ email: string; role: string; token: string } | null>(null);
+
+  const getInviteUrl = (token: string) => `${window.location.origin}/accept-invite?token=${token}`;
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,10 +70,12 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
     }
 
     try {
-      await inviteCollaborator.mutateAsync({ tripId, email: email.trim(), role });
-      toast({
-        title: 'Invitation sent',
-        description: `Invited ${email} as ${role}`,
+      const invitation = await inviteCollaborator.mutateAsync({ tripId, email: email.trim(), role });
+      // Show the newly created invite with the shareable link
+      setNewlyCreatedInvite({ 
+        email: email.trim(), 
+        role, 
+        token: invitation.token 
       });
       setEmail('');
     } catch (error) {
@@ -83,11 +88,37 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
   };
 
   const handleCopyInviteLink = async (token: string) => {
-    const inviteUrl = `${window.location.origin}/invite/${token}`;
+    const inviteUrl = getInviteUrl(token);
     await navigator.clipboard.writeText(inviteUrl);
     setCopiedToken(token);
-    toast({ title: 'Invite link copied!' });
+    toast({ title: 'Link copied to clipboard!' });
     setTimeout(() => setCopiedToken(null), 2000);
+  };
+
+  const handleShare = async (token: string, email: string) => {
+    const inviteUrl = getInviteUrl(token);
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Trip Invitation',
+          text: `You've been invited to collaborate on a trip! Join here:`,
+          url: inviteUrl,
+        });
+      } catch (err) {
+        // User cancelled or share failed - fall back to copy
+        if ((err as Error).name !== 'AbortError') {
+          handleCopyInviteLink(token);
+        }
+      }
+    } else {
+      // Fallback for browsers without Web Share API
+      handleCopyInviteLink(token);
+    }
+  };
+
+  const handleDismissNewInvite = () => {
+    setNewlyCreatedInvite(null);
   };
 
   const handleRemoveInvitation = async (invitationId: string) => {
@@ -153,30 +184,95 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
 
         {/* Invite Form - Only for owners */}
         {isOwner && (
-          <form onSubmit={handleInvite} className="border-b border-border pb-4 mb-4">
-            <Label className="text-sm font-medium mb-2 block">Invite by email</Label>
-            <div className="flex gap-2">
-              <Input
-                type="email"
-                placeholder="colleague@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="flex-1"
-              />
-              <Select value={role} onValueChange={(v) => setRole(v as 'viewer' | 'editor')}>
-                <SelectTrigger className="w-28">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="viewer">Viewer</SelectItem>
-                  <SelectItem value="editor">Editor</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button type="submit" disabled={inviteCollaborator.isPending}>
-                {inviteCollaborator.isPending ? '...' : 'Invite'}
-              </Button>
-            </div>
-          </form>
+          <div className="border-b border-border pb-4 mb-4">
+            {newlyCreatedInvite ? (
+              // Show the newly created invite link
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                  <Check className="h-4 w-4" />
+                  <span>Invitation created for <strong>{newlyCreatedInvite.email}</strong></span>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Share this link with them:</Label>
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+                    <Link className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <code className="text-xs flex-1 truncate text-muted-foreground">
+                      {getInviteUrl(newlyCreatedInvite.token)}
+                    </code>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleCopyInviteLink(newlyCreatedInvite.token)}
+                    >
+                      {copiedToken === newlyCreatedInvite.token ? (
+                        <>
+                          <Check className="h-4 w-4 mr-1 text-green-500" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4 mr-1" />
+                          Copy Link
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleShare(newlyCreatedInvite.token, newlyCreatedInvite.email)}
+                    >
+                      <Share2 className="h-4 w-4 mr-1" />
+                      Share
+                    </Button>
+                  </div>
+                </div>
+                
+                <p className="text-xs text-muted-foreground">
+                  They'll be added as {newlyCreatedInvite.role === 'editor' ? 'an' : 'a'} <strong>{newlyCreatedInvite.role}</strong> once they click the link and sign in.
+                </p>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground"
+                  onClick={handleDismissNewInvite}
+                >
+                  Invite another collaborator
+                </Button>
+              </div>
+            ) : (
+              // Show the invite form
+              <form onSubmit={handleInvite}>
+                <Label className="text-sm font-medium mb-2 block">Invite by email</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="colleague@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Select value={role} onValueChange={(v) => setRole(v as 'viewer' | 'editor')}>
+                    <SelectTrigger className="w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="viewer">Viewer</SelectItem>
+                      <SelectItem value="editor">Editor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button type="submit" disabled={inviteCollaborator.isPending}>
+                    {inviteCollaborator.isPending ? '...' : 'Invite'}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
         )}
 
         {/* Current Collaborators */}
@@ -269,6 +365,16 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={() => handleShare(invite.token, invite.email)}
+                        title="Share invite link"
+                      >
+                        <Share2 className="h-3 w-3" />
+                        Share
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
