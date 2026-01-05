@@ -55,7 +55,7 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [newlyCreatedInvite, setNewlyCreatedInvite] = useState<{ email: string; role: string; token: string } | null>(null);
 
-  const getInviteUrl = (token: string) => `${window.location.origin}/accept-invite?token=${token}`;
+  const getInviteUrl = (token: string) => `${window.location.origin}/invite/${token}`;
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,7 +198,7 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
                   <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg">
                     <Link className="h-4 w-4 text-slate-500 shrink-0" />
                     <span className="text-sm flex-1 truncate text-slate-600 dark:text-slate-300">
-                      {window.location.host}/accept-invite?token=...
+                      {window.location.host}/invite/...
                     </span>
                   </div>
                   <div className="flex gap-2">
