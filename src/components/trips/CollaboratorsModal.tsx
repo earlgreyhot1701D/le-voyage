@@ -208,58 +208,49 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
           <div className="border-b border-border pb-4 mb-4">
             {newlyCreatedInvite ? (
               // Show the newly created invite link
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-500">
                   <Check className="h-4 w-4" />
-                  <span>Invitation created for <strong>{newlyCreatedInvite.email}</strong></span>
+                  <span className="text-sm">
+                    Invitation ready for <strong>{newlyCreatedInvite.email}</strong>
+                  </span>
                 </div>
                 
-                <div className="space-y-3">
-                  <Label className="text-sm font-medium text-foreground">Share this link with them:</Label>
-                  <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg">
-                    <Link className="h-4 w-4 text-slate-500 shrink-0" />
-                    <span className="text-sm flex-1 truncate text-slate-600 dark:text-slate-300">
-                      {window.location.host}/invite/...
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Share this link with them:</Label>
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       variant="default"
-                      size="sm"
-                      className="flex-1"
                       onClick={() => handleCopyInviteLink(newlyCreatedInvite.token)}
                     >
                       {copiedToken === newlyCreatedInvite.token ? (
                         <>
-                          <Check className="h-4 w-4 mr-1" />
+                          <Check className="h-4 w-4 mr-2" />
                           Copied!
                         </>
                       ) : (
                         <>
-                          <Copy className="h-4 w-4 mr-1" />
+                          <Copy className="h-4 w-4 mr-2" />
                           Copy Link
                         </>
                       )}
                     </Button>
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="flex-1"
                       onClick={() => handleShare(newlyCreatedInvite.token, newlyCreatedInvite.email)}
                     >
-                      <Share2 className="h-4 w-4 mr-1" />
+                      <Share2 className="h-4 w-4 mr-2" />
                       Share
                     </Button>
                   </div>
                 </div>
                 
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground text-center">
                   They'll be added as {newlyCreatedInvite.role === 'editor' ? 'an' : 'a'} <strong>{newlyCreatedInvite.role}</strong> once they click the link and sign in.
                 </p>
                 
                 <Button
-                  variant="ghost"
-                  size="sm"
+                  variant="link"
                   className="w-full text-muted-foreground"
                   onClick={handleDismissNewInvite}
                 >
@@ -369,42 +360,42 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
               <p className="text-sm text-muted-foreground">Loading...</p>
             ) : (
               <div className="space-y-2">
-                  {invitations.map((invite) => (
-                    <div 
-                      key={invite.id} 
-                      className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-                          <Mail className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{invite.email}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Invited as {invite.role}
-                          </p>
+                {invitations.map((invite) => (
+                  <div 
+                    key={invite.id} 
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/50 border border-border"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="h-8 w-8 shrink-0 rounded-full bg-muted flex items-center justify-center">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{invite.email}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Invited as {invite.role}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs gap-1"
+                        className="h-8 px-2 text-xs gap-1.5"
                         onClick={() => handleShare(invite.token, invite.email)}
                         title="Share invite link"
                       >
-                        <Share2 className="h-3 w-3" />
-                        Share
+                        <Share2 className="h-3.5 w-3.5" />
+                        Resend
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-8 w-8"
                         onClick={() => handleCopyInviteLink(invite.token)}
                         title="Copy invite link"
                       >
                         {copiedToken === invite.token ? (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-500" />
                         ) : (
                           <Copy className="h-4 w-4" />
                         )}
@@ -412,8 +403,9 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
                         onClick={() => handleRemoveInvitation(invite.id)}
+                        title="Cancel invitation"
                       >
                         <X className="h-4 w-4" />
                       </Button>
