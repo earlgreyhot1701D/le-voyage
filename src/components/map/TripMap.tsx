@@ -3,12 +3,14 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { Tables } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
+import { mapService } from '@/services/mapService';
 
 type Place = Tables<'places'>;
 
 interface TripMapProps {
   places: Place[];
   center?: { lat: number; lng: number };
+  destination?: string; // Trip destination to geocode if no center/places
   className?: string;
   onMarkerClick?: (place: Place) => void;
 }
@@ -26,13 +28,14 @@ const categoryColors: Record<string, string> = {
   'Other': '#9CA3AF',
 };
 
-export function TripMap({ places, center, className, onMarkerClick }: TripMapProps) {
+export function TripMap({ places, center, destination, className, onMarkerClick }: TripMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [tokenError, setTokenError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [geocodedCenter, setGeocodedCenter] = useState<{ lat: number; lng: number } | null>(null);
 
   // Fetch token from edge function (backed by Supabase secrets)
   useEffect(() => {
@@ -72,20 +75,36 @@ export function TripMap({ places, center, className, onMarkerClick }: TripMapPro
     fetchToken();
   }, []);
 
+  // Geocode destination when no explicit center is provided
+  useEffect(() => {
+    if (!destination || !mapboxToken || center) return;
+    
+    // Check if we have places with coordinates - if so, we'll use their bounds instead
+    const placesWithCoords = places.filter(p => p.latitude && p.longitude);
+    if (placesWithCoords.length > 0) return;
+    
+    mapService.geocodeAddress(destination, mapboxToken).then(coords => {
+      if (coords) {
+        setGeocodedCenter({ lat: coords.latitude, lng: coords.longitude });
+      }
+    });
+  }, [destination, mapboxToken, center, places]);
+
   useEffect(() => {
     if (!mapContainer.current || !mapboxToken) return;
 
     try {
       mapboxgl.accessToken = mapboxToken;
 
-      // Default to Paris center if no center provided
-      const mapCenter = center || { lat: 48.8566, lng: 2.3522 };
+      // Priority: explicit center > geocoded destination > world view
+      const mapCenter = center || geocodedCenter || { lat: 20, lng: 0 };
+      const initialZoom = center || geocodedCenter ? 11 : 2;
 
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/light-v11',
         center: [mapCenter.lng, mapCenter.lat],
-        zoom: 12,
+        zoom: initialZoom,
         pitch: 20,
       });
 
@@ -108,7 +127,7 @@ export function TripMap({ places, center, className, onMarkerClick }: TripMapPro
       markers.current.forEach(m => m.remove());
       map.current?.remove();
     };
-  }, [mapboxToken, center]);
+  }, [mapboxToken, center, geocodedCenter]);
 
   // Update markers when places change
   useEffect(() => {

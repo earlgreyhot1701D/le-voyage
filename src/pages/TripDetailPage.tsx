@@ -99,11 +99,13 @@ function EventRow({
 function IntelligencePanel({ 
   neighborhoodFocus,
   insights,
-  places 
+  places,
+  destination
 }: { 
   neighborhoodFocus: string;
   insights: Insight[];
   places: Place[];
+  destination?: string;
 }) {
   const insight = insights.find(i => i.neighborhood_focus === neighborhoodFocus);
   
@@ -112,6 +114,7 @@ function IntelligencePanel({
       {/* Interactive Map */}
       <TripMap 
         places={places}
+        destination={destination}
         className="h-[250px]"
       />
 
@@ -155,7 +158,7 @@ function IntelligencePanel({
   );
 }
 
-function ItineraryView({ tripId }: { tripId: string }) {
+function ItineraryView({ tripId, destination }: { tripId: string; destination?: string }) {
   const { data: tripDays = [], isLoading: daysLoading } = useTripDays(tripId);
   const { data: places = [] } = usePlaces(tripId);
   const { data: insights = [] } = useInsights(tripId);
@@ -250,6 +253,7 @@ function ItineraryView({ tripId }: { tripId: string }) {
         neighborhoodFocus={selectedDay?.neighborhood_focus || ''} 
         insights={insights}
         places={places}
+        destination={destination}
       />
     </div>
   );
@@ -904,6 +908,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
           <div className="mb-6">
             <TripMap 
               places={filteredPlaces}
+              destination={destination}
               className="h-[300px] rounded-xl overflow-hidden"
             />
           </div>
@@ -1042,7 +1047,7 @@ export default function TripDetailPage() {
       />
       
       {view === 'itinerary' 
-        ? <ItineraryView tripId={trip.id} />
+        ? <ItineraryView tripId={trip.id} destination={trip.destination} />
         : <NeighborhoodsView tripId={trip.id} tripTitle={trip.title} destination={trip.destination} />
       }
       
