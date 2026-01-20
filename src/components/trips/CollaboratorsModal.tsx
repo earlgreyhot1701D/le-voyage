@@ -79,21 +79,35 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
       });
       setEmail('');
     } catch (error) {
-      // Check if this email already has a pending invitation
-      if (error instanceof Error && error.message === 'This email has already been invited') {
-        const existingInvite = invitations.find(
-          inv => inv.email.toLowerCase() === email.trim().toLowerCase()
-        );
-        if (existingInvite) {
-          // Show the existing invitation link instead of an error
+      if (error instanceof Error) {
+        const errorMsg = error.message.toLowerCase();
+        
+        // Check if this email already has a pending invitation or is already a collaborator
+        if (errorMsg.includes('already been invited') || errorMsg.includes('already a collaborator') || errorMsg.includes('already a member')) {
+          // First, check for a pending invitation we can resurface
+          const existingInvite = invitations.find(
+            inv => inv.email.toLowerCase() === email.trim().toLowerCase()
+          );
+          
+          if (existingInvite) {
+            // Show the existing invitation link instead of an error
+            toast({
+              title: 'Invitation already exists',
+              description: 'Showing the existing invite link to share',
+            });
+            setNewlyCreatedInvite({
+              email: existingInvite.email,
+              role: existingInvite.role,
+              token: existingInvite.token,
+            });
+            setEmail('');
+            return;
+          }
+          
+          // No pending invite found - they must have already accepted and are a collaborator
           toast({
-            title: 'Invitation already exists',
-            description: 'Showing the existing invite link to share',
-          });
-          setNewlyCreatedInvite({
-            email: existingInvite.email,
-            role: existingInvite.role,
-            token: existingInvite.token,
+            title: 'Already a team member',
+            description: `${email.trim()} is already a collaborator on this trip. They just need to log in to see it!`,
           });
           setEmail('');
           return;
