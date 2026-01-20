@@ -79,6 +79,27 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
       });
       setEmail('');
     } catch (error) {
+      // Check if this email already has a pending invitation
+      if (error instanceof Error && error.message === 'This email has already been invited') {
+        const existingInvite = invitations.find(
+          inv => inv.email.toLowerCase() === email.trim().toLowerCase()
+        );
+        if (existingInvite) {
+          // Show the existing invitation link instead of an error
+          toast({
+            title: 'Invitation already exists',
+            description: 'Showing the existing invite link to share',
+          });
+          setNewlyCreatedInvite({
+            email: existingInvite.email,
+            role: existingInvite.role,
+            token: existingInvite.token,
+          });
+          setEmail('');
+          return;
+        }
+      }
+      
       toast({
         title: 'Failed to invite',
         description: error instanceof Error ? error.message : 'Something went wrong',
