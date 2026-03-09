@@ -20,9 +20,11 @@ export default function AcceptInvitePage() {
   // Redirect to auth if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
+      // Save the invite URL to redirect back after login
+      sessionStorage.setItem('redirectAfterLogin', `/invite/${token}`);
       navigate('/auth');
     }
-  }, [authLoading, user, navigate]);
+  }, [authLoading, user, token, navigate]);
 
   const handleAccept = async () => {
     if (!token) return;
