@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -13,29 +13,46 @@ const authSchema = z.object({
   displayName: z.string().min(1, 'Display name is required').optional(),
 });
 
+type AuthMode = 'signIn' | 'signUp' | 'forgotPassword';
+
 export default function AuthPage() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [mode, setMode] = useState<AuthMode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { signIn, signUp, isAuthenticated, loading } = useAuth();
+  const { signIn, signUp, resetPasswordForEmail, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
   // Redirect if already authenticated
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      navigate('/', { replace: true });
+      // Check for invite redirect first
+      const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectUrl) {
+        sessionStorage.removeItem('redirectAfterLogin');
+        navigate(redirectUrl, { replace: true });
+      } else {
+        // Check if there's a location state from ProtectedRoute
+        const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+        navigate(from, { replace: true });
+      }
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, loading, navigate, location.state]);
 
   const validateForm = () => {
     try {
+      if (mode === 'forgotPassword') {
+        z.string().email('Please enter a valid email address').parse(email);
+        setErrors({});
+        return true;
+      }
       const data: Record<string, string> = { email, password };
-      if (isSignUp) {
+      if (mode === 'signUp') {
         data.displayName = displayName;
       }
       authSchema.parse(data);
@@ -63,7 +80,25 @@ export default function AuthPage() {
     setIsSubmitting(true);
     
     try {
-      if (isSignUp) {
+      if (mode === 'forgotPassword') {
+        const { error } = await resetPasswordForEmail(email);
+        if (error) {
+          toast({
+            title: 'Reset failed',
+            description: error.message,
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Check your email',
+            description: 'We sent you a password reset link. Please check your inbox.',
+          });
+          setMode('signIn');
+        }
+        return;
+      }
+
+      if (mode === 'signUp') {
         const { error } = await signUp(email, password, displayName);
         if (error) {
           if (error.message.includes('already registered')) {
@@ -116,21 +151,25 @@ export default function AuthPage() {
     );
   }
 
+  const subtitle = mode === 'signUp' 
+    ? 'Create your account' 
+    : mode === 'forgotPassword' 
+      ? 'Reset your password' 
+      : 'Welcome back, traveler';
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo / Branding */}
         <div className="text-center mb-8">
           <h1 className="font-serif text-4xl text-foreground mb-2">Le Voyage</h1>
-          <p className="text-muted-foreground text-sm">
-            {isSignUp ? 'Create your account' : 'Welcome back, traveler'}
-          </p>
+          <p className="text-muted-foreground text-sm">{subtitle}</p>
         </div>
 
         {/* Auth Card */}
         <div className="content-card">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {isSignUp && (
+            {mode === 'signUp' && (
               <div className="space-y-2">
                 <Label htmlFor="displayName">Display Name</Label>
                 <Input
@@ -162,43 +201,73 @@ export default function AuthPage() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="rounded-xl"
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
-              )}
-            </div>
+            {mode !== 'forgotPassword' && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="rounded-xl"
+                />
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password}</p>
+                )}
+              </div>
+            )}
+
+            {mode === 'signIn' && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => { setMode('forgotPassword'); setErrors({}); }}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
 
             <Button
               type="submit"
               disabled={isSubmitting}
               className="w-full btn-nouveau h-12 text-base"
             >
-              {isSubmitting ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In'}
+              {isSubmitting 
+                ? 'Please wait...' 
+                : mode === 'signUp' 
+                  ? 'Create Account' 
+                  : mode === 'forgotPassword' 
+                    ? 'Send Reset Link' 
+                    : 'Sign In'}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setErrors({});
-              }}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {isSignUp 
-                ? 'Already have an account? Sign in' 
-                : "Don't have an account? Sign up"}
-            </button>
+          <div className="mt-6 text-center space-y-2">
+            {mode === 'forgotPassword' ? (
+              <button
+                type="button"
+                onClick={() => { setMode('signIn'); setErrors({}); }}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Back to sign in
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === 'signUp' ? 'signIn' : 'signUp');
+                  setErrors({});
+                }}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {mode === 'signUp' 
+                  ? 'Already have an account? Sign in' 
+                  : "Don't have an account? Sign up"}
+              </button>
+            )}
           </div>
         </div>
 

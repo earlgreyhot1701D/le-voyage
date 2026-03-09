@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import TripDetailPage from "./pages/TripDetailPage";
 import AuthPage from "./pages/AuthPage";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/trips" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/trip/:tripId" element={<ProtectedRoute><TripDetailPage /></ProtectedRoute>} />
