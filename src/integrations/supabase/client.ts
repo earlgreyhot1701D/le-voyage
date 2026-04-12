@@ -1,7 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://ixhdadzkztjcdqridqha.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4aGRhZHprenRqY2RxcmlkcWhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5NTk5MzQsImV4cCI6MjA4MjUzNTkzNH0.15VE0zPYmnFx5GVEueELFigDKA3vF5nrwcYDMRkRmJY';
+// Read from Vite env vars so we can point at staging/prod without a code change.
+// The anon key is safe to expose in the client bundle, but pinning it in source
+// prevents per-env overrides — keep this in .env / deploy secrets.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    'Missing Supabase configuration: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in your .env'
+  );
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {

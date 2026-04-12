@@ -117,8 +117,13 @@ export default function AuthPage() {
         } else {
           toast({
             title: 'Check your email',
-            description: 'We sent you a confirmation link. Please check your inbox.',
+            description: 'We sent you a confirmation link. Click it, then sign in below.',
           });
+          // Swap to the sign-in form so the user has a clear next step after
+          // confirming their email, rather than a stale sign-up form.
+          setPassword('');
+          setDisplayName('');
+          setMode('signIn');
         }
       } else {
         const { error } = await signIn(email, password);

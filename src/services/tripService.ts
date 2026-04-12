@@ -167,12 +167,15 @@ export const tripService = {
     })) as InvitationWithInviter[];
   },
 
-  // Invite a collaborator by email
+  // Invite a collaborator by email. Creates the invitation row and fires an
+  // email via the send-invitation-email edge function. An email-delivery
+  // failure does NOT throw — the invite row still exists and the caller can
+  // surface the shareable link as a fallback.
   async inviteCollaborator(
-    tripId: string, 
-    email: string, 
+    tripId: string,
+    email: string,
     role: 'viewer' | 'editor'
-  ): Promise<Invitation> {
+  ): Promise<{ invitation: Invitation; emailSent: boolean; emailError?: string }> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
@@ -193,7 +196,36 @@ export const tripService = {
       }
       throw error;
     }
-    return data;
+
+    const { sent, error: emailError } = await this.sendInvitationEmail(data.id);
+    return { invitation: data, emailSent: sent, emailError };
+  },
+
+  // Trigger the send-invitation-email edge function for an existing invite.
+  // Returns { sent, error } — never throws, so callers can still surface the
+  // shareable link if email delivery fails (e.g. RESEND_API_KEY not set).
+  async sendInvitationEmail(
+    invitationId: string
+  ): Promise<{ sent: boolean; error?: string }> {
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'send-invitation-email',
+        { body: { invitationId } }
+      );
+      if (error) {
+        const message =
+          (data as { error?: string; detail?: string } | null)?.error ||
+          error.message ||
+          'Email delivery failed';
+        return { sent: false, error: message };
+      }
+      return { sent: true };
+    } catch (err) {
+      return {
+        sent: false,
+        error: err instanceof Error ? err.message : 'Email delivery failed',
+      };
+    }
   },
 
   // Remove an invitation

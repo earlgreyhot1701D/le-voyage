@@ -11,16 +11,27 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+  const [linkExpired, setLinkExpired] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Supabase appends #access_token=...&type=recovery to the URL
+    // Supabase appends #access_token=...&type=recovery to the URL (implicit flow)
+    // or ?error=... / ?error_description=... if the link is expired/invalid.
     const hash = window.location.hash;
+    const search = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+
     if (hash.includes('type=recovery')) {
       setIsRecoveryMode(true);
+    }
+
+    // Surface Supabase's error params (e.g. otp_expired) so the user isn't
+    // stuck staring at "Checking your reset link…" forever.
+    if (search.get('error') || hashParams.get('error')) {
+      setLinkExpired(true);
     }
 
     // Also listen for PASSWORD_RECOVERY event
@@ -30,7 +41,17 @@ export default function ResetPasswordPage() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Fallback: if neither the hash token nor a PASSWORD_RECOVERY event
+    // arrives within a few seconds, show a helpful error rather than a
+    // perpetual loading state.
+    const timeout = window.setTimeout(() => {
+      setLinkExpired((prev) => prev || true);
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      window.clearTimeout(timeout);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,18 +96,35 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
           <h1 className="font-serif text-4xl text-foreground mb-4">Le Voyage</h1>
-          <p className="text-muted-foreground mb-6">
-            Checking your reset link…
-          </p>
-          <p className="text-sm text-muted-foreground">
-            If nothing happens, the link may be expired or invalid.{' '}
-            <button
-              onClick={() => navigate('/auth')}
-              className="text-primary hover:underline"
-            >
-              Return to sign in
-            </button>
-          </p>
+          {linkExpired ? (
+            <>
+              <p className="text-muted-foreground mb-2">
+                This reset link is invalid or has expired.
+              </p>
+              <p className="text-sm text-muted-foreground mb-6">
+                Request a new link from the sign-in page — each link can only be used once.
+              </p>
+              <button
+                onClick={() => navigate('/auth')}
+                className="text-primary hover:underline"
+              >
+                Return to sign in
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground mb-6">Checking your reset link…</p>
+              <p className="text-sm text-muted-foreground">
+                If nothing happens, the link may be expired or invalid.{' '}
+                <button
+                  onClick={() => navigate('/auth')}
+                  className="text-primary hover:underline"
+                >
+                  Return to sign in
+                </button>
+              </p>
+            </>
+          )}
         </div>
       </div>
     );

@@ -29,6 +29,12 @@ export function useInviteCollaborator() {
   });
 }
 
+export function useResendInvitationEmail() {
+  return useMutation({
+    mutationFn: (invitationId: string) => tripService.sendInvitationEmail(invitationId),
+  });
+}
+
 export function useRemoveInvitation() {
   const queryClient = useQueryClient();
 
