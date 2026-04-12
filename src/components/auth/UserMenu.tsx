@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, User } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export function UserMenu() {
@@ -71,12 +71,7 @@ export function UserMenu() {
           <p className="text-xs text-muted-foreground">{user?.email}</p>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer" disabled>
-          <User className="mr-2 h-4 w-4" />
-          Profile
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem 
+        <DropdownMenuItem
           className="cursor-pointer text-destructive focus:text-destructive"
           onClick={handleSignOut}
         >
