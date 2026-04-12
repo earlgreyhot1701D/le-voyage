@@ -1,5 +1,10 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import type {
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+} from '@/integrations/supabase/types';
+import type { RegeneratedInvitation } from '@/integrations/supabase/extra-rpcs';
 
 export type Trip = Tables<'trips'>;
 export type TripInsert = TablesInsert<'trips'>;
@@ -167,10 +172,13 @@ export const tripService = {
     })) as InvitationWithInviter[];
   },
 
-  // Invite a collaborator by email
+  // Invite a collaborator by email. Best-effort: also dispatches the
+  // invitation email via the send-invitation Edge Function. The DB row is
+  // the source of truth; an email failure is logged but does not roll back
+  // the invitation, so the inviter can still copy the link from the UI.
   async inviteCollaborator(
-    tripId: string, 
-    email: string, 
+    tripId: string,
+    email: string,
     role: 'viewer' | 'editor'
   ): Promise<Invitation> {
     const { data: { user } } = await supabase.auth.getUser();
@@ -193,6 +201,16 @@ export const tripService = {
       }
       throw error;
     }
+
+    try {
+      await this.sendInvitationEmail(data.id);
+    } catch (sendErr) {
+      console.warn(
+        '[tripService.inviteCollaborator] Invitation row created but email delivery failed:',
+        sendErr,
+      );
+    }
+
     return data;
   },
 
@@ -219,8 +237,8 @@ export const tripService = {
 
   // Update a collaborator's role
   async updateCollaboratorRole(
-    tripId: string, 
-    userId: string, 
+    tripId: string,
+    userId: string,
     role: 'editor' | 'viewer'
   ): Promise<void> {
     const { error } = await supabase
@@ -249,5 +267,43 @@ export const tripService = {
 
     if (error) throw error;
     return data as boolean;
+  },
+
+  // Rotate a pending invitation's token + refresh its expiry. Owner-only,
+  // enforced inside the SECURITY DEFINER RPC. Required because the
+  // "Invitations cannot be updated" RLS policy blocks any direct UPDATE.
+  async regenerateInvitationToken(invitationId: string): Promise<RegeneratedInvitation> {
+    type RpcCall = (
+      fn: 'regenerate_invitation_token',
+      args: { p_invitation_id: string },
+    ) => Promise<{ data: RegeneratedInvitation[] | null; error: Error | null }>;
+    const rpc = supabase.rpc as unknown as RpcCall;
+    const { data, error } = await rpc('regenerate_invitation_token', {
+      p_invitation_id: invitationId,
+    });
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error('Failed to regenerate invitation');
+    }
+    return data[0];
+  },
+
+  // Send (or re-send) an invitation email by invoking the Edge Function.
+  async sendInvitationEmail(invitationId: string): Promise<void> {
+    const { error } = await supabase.functions.invoke('send-invitation', {
+      body: {
+        invitationId,
+        appOrigin: window.location.origin,
+      },
+    });
+    if (error) throw error;
+  },
+
+  // Re-send an invitation: rotate the token (so the previous link is
+  // invalidated) and dispatch a fresh email.
+  async resendInvitation(invitationId: string): Promise<RegeneratedInvitation> {
+    const refreshed = await this.regenerateInvitationToken(invitationId);
+    await this.sendInvitationEmail(refreshed.id);
+    return refreshed;
   },
 };
