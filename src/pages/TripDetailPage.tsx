@@ -700,7 +700,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
   
   // Google Places search
   const { results: searchResults, isSearching, search, clearResults } = usePlaceSearch();
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Add to itinerary modal
   const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
