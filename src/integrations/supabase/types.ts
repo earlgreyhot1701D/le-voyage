@@ -196,11 +196,13 @@ export type Database = {
       places: {
         Row: {
           added_by: string | null
+          address: string | null
           area_id: string | null
           arrondissement: string | null
           badge: string | null
           category: Database["public"]["Enums"]["place_category"]
           created_at: string
+          google_place_id: string | null
           id: string
           latitude: number | null
           longitude: number | null
@@ -212,11 +214,13 @@ export type Database = {
         }
         Insert: {
           added_by?: string | null
+          address?: string | null
           area_id?: string | null
           arrondissement?: string | null
           badge?: string | null
           category?: Database["public"]["Enums"]["place_category"]
           created_at?: string
+          google_place_id?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -228,11 +232,13 @@ export type Database = {
         }
         Update: {
           added_by?: string | null
+          address?: string | null
           area_id?: string | null
           arrondissement?: string | null
           badge?: string | null
           category?: Database["public"]["Enums"]["place_category"]
           created_at?: string
+          google_place_id?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
