@@ -66,7 +66,25 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders });
+  }
+
   try {
+    const authHeader = req.headers.get('authorization');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    if (!authHeader?.startsWith('Bearer ') || !supabaseUrl || !anonKey) {
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders });
+    }
+
+    const userResponse = await fetch(supabaseUrl + '/auth/v1/user', {
+      headers: { authorization: authHeader, apikey: anonKey },
+    });
+    if (!userResponse.ok) {
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders });
+    }
+
     const apiKey = Deno.env.get('GOOGLE_PLACES_API_KEY');
     if (!apiKey) {
       console.error('[search-places] GOOGLE_PLACES_API_KEY not configured');
@@ -92,15 +110,13 @@ serve(async (req) => {
 
     console.log(`[search-places] Searching for: "${query}" near ${location?.lat ?? 'default'}, ${location?.lng ?? 'default'}`);
 
-    // Default to Paris if no location provided
-    const searchLat = location?.lat ?? 48.8566;
-    const searchLng = location?.lng ?? 2.3522;
-
     // Build the Text Search URL
     const url = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
     url.searchParams.set('query', query);
-    url.searchParams.set('location', `${searchLat},${searchLng}`);
-    url.searchParams.set('radius', '10000'); // 10km radius
+    if (location) {
+      url.searchParams.set('location', location.lat + ',' + location.lng);
+      url.searchParams.set('radius', '10000');
+    }
     url.searchParams.set('key', apiKey);
 
     console.log(`[search-places] Calling Google Places API`);
@@ -120,12 +136,6 @@ serve(async (req) => {
 
     // Transform results
     const places: PlaceResult[] = (data.results || []).slice(0, 10).map((place: any) => {
-      let photoUrl = null;
-      if (place.photos && place.photos.length > 0) {
-        const photoRef = place.photos[0].photo_reference;
-        photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoRef}&key=${apiKey}`;
-      }
-
       return {
         id: place.place_id,
         name: place.name,
@@ -134,7 +144,8 @@ serve(async (req) => {
         lat: place.geometry?.location?.lat || 0,
         lng: place.geometry?.location?.lng || 0,
         types: place.types || [],
-        photoUrl,
+        // Never send the server-side API key to the browser in a photo URL.
+        photoUrl: null,
         priceLevel: place.price_level ?? null,
       };
     });

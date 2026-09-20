@@ -76,9 +76,12 @@ export const placeSearchService = {
     const arrMatch = address.match(/750(\d{2})/);
     const arrondissement = arrMatch ? arrMatch[1] : null;
     
-    // Try to extract area name before the postal code
+    // Google addresses do not identify a neighborhood outside Paris.
+    // Use the city rather than treating a state and postal code as a neighborhood.
     const parts = address.split(',');
-    const neighborhood = parts.length > 1 ? parts[parts.length - 2]?.trim() : null;
+    const neighborhood = arrondissement
+      ? parts[parts.length - 2]?.trim() || null
+      : parts.length >= 3 ? parts[parts.length - 3]?.trim() || null : null;
     
     return { neighborhood, arrondissement };
   }

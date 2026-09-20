@@ -282,7 +282,7 @@ interface PlaceCardProps {
   place: Place;
   onRemove?: () => void;
   onAddToItinerary?: () => void;
-  onUpdateNotes?: (notes: string) => void;
+  onUpdateNotes?: (notes: string) => Promise<void>;
   canEdit?: boolean;
 }
 
@@ -292,13 +292,18 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
 
   // Generate Google Search URL for researching the place
   const getSearchUrl = () => {
-    const searchQuery = `${place.name} ${place.neighborhood_name || 'Paris'}`;
+    const searchQuery = `${place.name} ${place.address || place.neighborhood_name || ''}`;
     return `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
   };
 
-  const handleSaveNotes = () => {
-    onUpdateNotes?.(notesValue.trim());
-    setIsEditingNotes(false);
+  const handleSaveNotes = async () => {
+    try {
+      await onUpdateNotes?.(notesValue.trim());
+      setIsEditingNotes(false);
+    } catch (error) {
+      console.error('Failed to save place notes:', error);
+      toast.error('Could not save your note. Please try again.');
+    }
   };
 
   const handleCancelNotes = () => {
@@ -364,9 +369,9 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                const url = place.latitude && place.longitude
+                const url = place.latitude != null && place.longitude != null
                   ? `https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`
-                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${place.neighborhood_name || 'Paris'}`)}`;
+                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address || `${place.name} ${place.neighborhood_name || ''}`)}`;
                 const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
                 if (!newWindow) {
                   toast.info('Popup blocked. Allow popups to open Google Maps.');
@@ -378,7 +383,7 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
               <MapPin className="w-3.5 h-3.5" />
             </button>
           </div>
-          <p className="text-sm text-muted-foreground">{place.neighborhood_name}</p>
+          <p className="text-sm text-muted-foreground">{place.address || place.neighborhood_name}</p>
         </div>
         {place.rating && (
           <div className="text-right">
@@ -600,6 +605,7 @@ interface ManualAddFormProps {
 
 function ManualAddForm({ tripId, neighborhoods, onClose }: ManualAddFormProps) {
   const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const createPlace = useCreatePlace();
 
@@ -610,6 +616,7 @@ function ManualAddForm({ tripId, neighborhoods, onClose }: ManualAddFormProps) {
       await createPlace.mutateAsync({
         trip_id: tripId,
         name: name.trim(),
+        address: address.trim() || null,
         arrondissement: null,
         neighborhood_name: neighborhood || null,
         category: 'Other',
@@ -622,6 +629,7 @@ function ManualAddForm({ tripId, neighborhoods, onClose }: ManualAddFormProps) {
       
       toast.success(`Added "${name.trim()}" to your trip!`);
       setName('');
+      setAddress('');
       setNeighborhood('');
       onClose();
     } catch (error) {
@@ -649,6 +657,15 @@ function ManualAddForm({ tripId, neighborhoods, onClose }: ManualAddFormProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+            className="w-full p-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground text-sm"
+          />
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <input
+            type="text"
+            placeholder="Address (optional)"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
             className="w-full p-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground text-sm"
           />
         </div>
@@ -699,7 +716,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
   const [showMap, setShowMap] = useState(true);
   
   // Google Places search
-  const { results: searchResults, isSearching, search, clearResults } = usePlaceSearch();
+  const { results: searchResults, isSearching, error: searchError, search, clearResults } = usePlaceSearch();
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Add to itinerary modal
@@ -734,18 +751,22 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
       clearTimeout(searchTimeoutRef.current);
     }
     
-    if (value.length >= 2) {
+    if (canEdit && value.length >= 2) {
       searchTimeoutRef.current = setTimeout(() => {
-        // Search with Paris as default location
-        search(value, { lat: 48.8566, lng: 2.3522 });
+        search(`${value} ${destination || ''}`.trim());
       }, 300);
     } else {
       clearResults();
     }
-  }, [search, clearResults]);
+  }, [search, clearResults, canEdit, destination]);
   
   // Add place from Google search result
   const handleAddFromSearch = useCallback(async (result: import('@/services/placeSearchService').PlaceSearchResult) => {
+    if (!canEdit || createPlace.isPending) return;
+    if (places.some(place => place.google_place_id === result.id)) {
+      toast.info(`"${result.name}" is already saved to this trip.`);
+      return;
+    }
     try {
       const categoryStr = placeSearchService.mapTypesToCategory(result.types);
       const category = categoryStr as "Attraction" | "Day Trip" | "Experience" | "Food and Drink" | "Lodging" | "Museum" | "Other" | "Shopping" | "Transit";
@@ -754,6 +775,8 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
       await createPlace.mutateAsync({
         trip_id: tripId,
         name: result.name,
+        address: result.address || null,
+        google_place_id: result.id,
         category,
         neighborhood_name: neighborhood,
         arrondissement,
@@ -769,9 +792,9 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
       setSearchQuery('');
     } catch (error) {
       console.error('Failed to add place:', error);
-      toast.error('Failed to add place');
+      toast.error((error as { code?: string }).code === '23505' ? 'This place is already saved to the trip.' : 'Failed to add place');
     }
-  }, [tripId, createPlace, clearResults]);
+  }, [tripId, createPlace, clearResults, canEdit, places]);
   
   // Get unique neighborhoods and arrondissements from places
   const neighborhoods = [...new Set(places.map(p => p.neighborhood_name).filter(Boolean))] as string[];
@@ -844,7 +867,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
           <div className="relative">
             <input
               type="text"
-              placeholder="Search places to add (e.g., Louvre Museum, Café de Flore...)"
+              placeholder={canEdit ? 'Search places to add (e.g., Louvre Museum, Café de Flore...)' : 'Search saved places'}
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full p-3 pl-10 rounded-xl border border-primary/30 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
@@ -863,7 +886,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
             
             {/* Google Places search results dropdown */}
             <PlaceSearchResults
-              results={searchResults}
+              results={canEdit ? searchResults : []}
               isLoading={isSearching}
               onSelect={handleAddFromSearch}
               onClose={clearResults}
@@ -873,7 +896,11 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
           {/* Status and manual add option */}
           <div className="flex items-center justify-between mt-1.5">
             <p className="text-sm text-muted-foreground">
-              {isSearching ? (
+              {!canEdit ? (
+                'Search places saved to this trip'
+              ) : searchError ? (
+                `Google Places search failed: ${searchError}`
+              ) : isSearching ? (
                 'Searching Google Places...'
               ) : searchQuery.length >= 2 && searchResults.length === 0 ? (
                 `No Google Places found for "${searchQuery}"`
@@ -883,7 +910,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
                 'Start typing to search Google Places'
               )}
             </p>
-            {!showManualAdd && (
+            {canEdit && !showManualAdd && (
               <button
                 onClick={() => setShowManualAdd(true)}
                 className="text-sm text-primary hover:text-primary/80 transition-colors"
@@ -894,7 +921,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
           </div>
           
           {/* Manual Add Form - Secondary */}
-          {showManualAdd && (
+          {canEdit && showManualAdd && (
             <ManualAddForm
               tripId={tripId}
               neighborhoods={neighborhoods}
@@ -953,7 +980,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
                     place={place} 
                     onRemove={canEdit ? () => handleRemovePlace(place.id) : undefined}
                     onAddToItinerary={canEdit ? () => handleAddToItinerary(place) : undefined}
-                    onUpdateNotes={canEdit ? (notes) => updatePlace.mutate({ placeId: place.id, updates: { notes: notes || null } }) : undefined}
+                    onUpdateNotes={canEdit ? async (notes) => { await updatePlace.mutateAsync({ placeId: place.id, updates: { notes: notes || null } }); } : undefined}
                     canEdit={canEdit}
                   />
                 ))}
