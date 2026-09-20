@@ -180,7 +180,7 @@ export const tripService = {
     tripId: string,
     email: string,
     role: 'viewer' | 'editor'
-  ): Promise<Invitation> {
+  ): Promise<{ invitation: Invitation; emailSent: boolean; emailError?: string }> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
@@ -202,16 +202,35 @@ export const tripService = {
       throw error;
     }
 
-    try {
-      await this.sendInvitationEmail(data.id);
-    } catch (sendErr) {
-      console.warn(
-        '[tripService.inviteCollaborator] Invitation row created but email delivery failed:',
-        sendErr,
-      );
-    }
+    const { sent, error: emailError } = await this.sendInvitationEmail(data.id);
+    return { invitation: data, emailSent: sent, emailError };
+  },
 
-    return data;
+  // The deployed Edge Function confirms that the provider accepted the email.
+  // Keep the invitation link available when delivery cannot be confirmed.
+  async sendInvitationEmail(invitationId: string): Promise<{ sent: boolean; error?: string }> {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-invitation', {
+        body: { invitationId, appOrigin: window.location.origin },
+      });
+      if (error) {
+        let message = error.message || 'Email delivery failed';
+        const context = (error as { context?: unknown }).context;
+        if (context instanceof Response) {
+          try {
+            const body = await context.clone().json();
+            if (typeof body?.error === 'string') message = body.error;
+          } catch { /* Preserve the original error. */ }
+        }
+        return { sent: false, error: message };
+      }
+      if (data?.ok !== true) {
+        return { sent: false, error: 'Email delivery was not confirmed' };
+      }
+      return { sent: true };
+    } catch (err) {
+      return { sent: false, error: err instanceof Error ? err.message : 'Email delivery failed' };
+    }
   },
 
   // Remove an invitation
@@ -288,22 +307,12 @@ export const tripService = {
     return data[0];
   },
 
-  // Send (or re-send) an invitation email by invoking the Edge Function.
-  async sendInvitationEmail(invitationId: string): Promise<void> {
-    const { error } = await supabase.functions.invoke('send-invitation', {
-      body: {
-        invitationId,
-        appOrigin: window.location.origin,
-      },
-    });
-    if (error) throw error;
-  },
-
   // Re-send an invitation: rotate the token (so the previous link is
   // invalidated) and dispatch a fresh email.
   async resendInvitation(invitationId: string): Promise<RegeneratedInvitation> {
     const refreshed = await this.regenerateInvitationToken(invitationId);
-    await this.sendInvitationEmail(refreshed.id);
+    const delivery = await this.sendInvitationEmail(refreshed.id);
+    if (!delivery.sent) throw new Error(delivery.error || 'Email delivery failed');
     return refreshed;
   },
 };

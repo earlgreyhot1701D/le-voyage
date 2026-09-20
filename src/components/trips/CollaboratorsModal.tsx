@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Mail, X, Crown, Pencil, Eye, Copy, Check, Share2, Link } from 'lucide-react';
+import { Users, Mail, X, Crown, Pencil, Eye, Copy, Check, Share2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTripPermissions } from '@/hooks/useTripPermissions';
 import {
@@ -9,6 +9,7 @@ import {
   useRemoveInvitation,
   useRemoveCollaborator,
   useUpdateCollaboratorRole,
+  useResendInvitationEmail,
 } from '@/hooks/useCollaborators';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -49,11 +50,13 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
   const removeInvitation = useRemoveInvitation();
   const removeCollaborator = useRemoveCollaborator();
   const updateRole = useUpdateCollaboratorRole();
+  const resendInviteEmail = useResendInvitationEmail();
 
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'viewer' | 'editor'>('viewer');
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
-  const [newlyCreatedInvite, setNewlyCreatedInvite] = useState<{ email: string; role: string; token: string } | null>(null);
+  const [newlyCreatedInvite, setNewlyCreatedInvite] = useState<{ email: string; role: string; token: string; emailSent: boolean } | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const getInviteUrl = (token: string) => `${window.location.origin}/invite/${token}`;
 
@@ -70,13 +73,28 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
     }
 
     try {
-      const invitation = await inviteCollaborator.mutateAsync({ tripId, email: email.trim(), role });
+      const result = await inviteCollaborator.mutateAsync({ tripId, email: email.trim(), role });
       // Show the newly created invite with the shareable link
-      setNewlyCreatedInvite({ 
-        email: email.trim(), 
-        role, 
-        token: invitation.token 
+      setNewlyCreatedInvite({
+        email: email.trim(),
+        role,
+        token: result.invitation.token,
+        emailSent: result.emailSent,
       });
+      if (result.emailSent) {
+        toast({
+          title: 'Invitation sent',
+          description: `We emailed an invite to ${email.trim()}.`,
+        });
+      } else {
+        toast({
+          title: 'Invite created — email not sent',
+          description: result.emailError
+            ? `${result.emailError}. Share the link below instead.`
+            : 'Email delivery is not configured. Share the link below instead.',
+          variant: 'destructive',
+        });
+      }
       setEmail('');
     } catch (error) {
       if (error instanceof Error) {
@@ -99,6 +117,7 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
               email: existingInvite.email,
               role: existingInvite.role,
               token: existingInvite.token,
+              emailSent: false,
             });
             setEmail('');
             return;
@@ -128,6 +147,35 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
     setCopiedToken(token);
     toast({ title: 'Link copied to clipboard!' });
     setTimeout(() => setCopiedToken(null), 2000);
+  };
+
+  const handleResendEmail = async (invitationId: string, recipientEmail: string) => {
+    setResendingId(invitationId);
+    try {
+      const result = await resendInviteEmail.mutateAsync(invitationId);
+      if (result.sent) {
+        toast({
+          title: 'Invitation email resent',
+          description: `We re-sent the invite to ${recipientEmail}.`,
+        });
+      } else {
+        toast({
+          title: 'Could not send email',
+          description: result.error
+            ? `${result.error} — use Copy or Share instead.`
+            : 'Email delivery is not configured — use Copy or Share instead.',
+          variant: 'destructive',
+        });
+      }
+    } catch (err) {
+      toast({
+        title: 'Could not send email',
+        description: err instanceof Error ? err.message : 'Unexpected error',
+        variant: 'destructive',
+      });
+    } finally {
+      setResendingId(null);
+    }
   };
 
   const handleShare = async (token: string, email: string) => {
@@ -226,12 +274,18 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
                 <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-500">
                   <Check className="h-4 w-4" />
                   <span className="text-sm">
-                    Invitation ready for <strong>{newlyCreatedInvite.email}</strong>
+                    {newlyCreatedInvite.emailSent
+                      ? <>Email sent to <strong>{newlyCreatedInvite.email}</strong></>
+                      : <>Invitation ready for <strong>{newlyCreatedInvite.email}</strong></>}
                   </span>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Share this link with them:</Label>
+                  <Label className="text-sm font-medium">
+                    {newlyCreatedInvite.emailSent
+                      ? 'You can also share this link directly:'
+                      : 'Share this link with them:'}
+                  </Label>
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       variant="default"
@@ -395,11 +449,21 @@ export function CollaboratorsModal({ tripId, open, onOpenChange }: Collaborators
                         variant="ghost"
                         size="sm"
                         className="h-8 px-2 text-xs gap-1.5"
+                        onClick={() => handleResendEmail(invite.id, invite.email)}
+                        disabled={resendingId === invite.id}
+                        title="Re-send invitation email"
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                        {resendingId === invite.id ? 'Sending…' : 'Resend'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={() => handleShare(invite.token, invite.email)}
                         title="Share invite link"
                       >
-                        <Share2 className="h-3.5 w-3.5" />
-                        Resend
+                        <Share2 className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
