@@ -47,6 +47,18 @@ export function useRemoveInvitation() {
   });
 }
 
+export function useResendInvitation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ invitationId }: { invitationId: string; tripId: string }) =>
+      tripService.resendInvitation(invitationId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['invitations', variables.tripId] });
+    },
+  });
+}
+
 export function useRemoveCollaborator() {
   const queryClient = useQueryClient();
 

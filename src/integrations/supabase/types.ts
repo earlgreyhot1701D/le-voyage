@@ -493,6 +493,17 @@ export type Database = {
         Args: { _trip_id: string; _user_id: string }
         Returns: boolean
       }
+      regenerate_invitation_token: {
+        Args: { p_invitation_id: string }
+        Returns: {
+          email: string
+          expires_at: string
+          id: string
+          role: Database["public"]["Enums"]["collaborator_role"]
+          token: string
+          trip_id: string
+        }[]
+      }
     }
     Enums: {
       collaborator_role: "owner" | "editor" | "viewer"

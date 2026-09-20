@@ -12,7 +12,7 @@ dist
 dist-ssr
 *.local
 
-# Local env — never commit. Use .env.example as the template.
+# Local env files – never commit. Use .env.example as the template.
 .env
 .env.*
 !.env.example

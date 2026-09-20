@@ -18,8 +18,8 @@ export default function ResetPasswordPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Supabase appends #access_token=...&type=recovery to the URL (implicit flow)
-    // or ?error=... / ?error_description=... if the link is expired/invalid.
+    // Supabase appends #access_token=...&type=recovery to the URL on success,
+    // or ?error=... / #error=... if the link is expired/invalid.
     const hash = window.location.hash;
     const search = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
@@ -44,9 +44,7 @@ export default function ResetPasswordPage() {
     // Fallback: if neither the hash token nor a PASSWORD_RECOVERY event
     // arrives within a few seconds, show a helpful error rather than a
     // perpetual loading state.
-    const timeout = window.setTimeout(() => {
-      setLinkExpired((prev) => prev || true);
-    }, 5000);
+    const timeout = window.setTimeout(() => setLinkExpired(true), 5000);
 
     return () => {
       subscription.unsubscribe();

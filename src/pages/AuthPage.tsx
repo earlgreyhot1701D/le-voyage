@@ -61,9 +61,9 @@ export default function AuthPage() {
     } catch (err) {
       if (err instanceof z.ZodError) {
         const newErrors: Record<string, string> = {};
-        err.errors.forEach((error) => {
-          if (error.path[0]) {
-            newErrors[error.path[0] as string] = error.message;
+        err.issues.forEach((issue) => {
+          if (issue.path[0]) {
+            newErrors[issue.path[0] as string] = issue.message;
           }
         });
         setErrors(newErrors);
@@ -119,8 +119,8 @@ export default function AuthPage() {
             title: 'Check your email',
             description: 'We sent you a confirmation link. Click it, then sign in below.',
           });
-          // Swap to the sign-in form so the user has a clear next step after
-          // confirming their email, rather than a stale sign-up form.
+          // Swap to the sign-in form so the next step is obvious once the
+          // user finishes confirming their email in another tab.
           setPassword('');
           setDisplayName('');
           setMode('signIn');
