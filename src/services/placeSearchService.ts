@@ -76,12 +76,14 @@ export const placeSearchService = {
     const arrMatch = address.match(/750(\d{2})/);
     const arrondissement = arrMatch ? arrMatch[1] : null;
     
-    // Google addresses do not identify a neighborhood outside Paris.
-    // Use the city rather than treating a state and postal code as a neighborhood.
+    // Keep US places in the same ZIP-based groups as existing trip places.
+    const usZipMatch = address.match(/,\s*([A-Z]{2})\s+(\d{5})(?:-\d{4})?\s*(?:,|$)/);
     const parts = address.split(',');
     const neighborhood = arrondissement
       ? parts[parts.length - 2]?.trim() || null
-      : parts.length >= 3 ? parts[parts.length - 3]?.trim() || null : null;
+      : usZipMatch
+        ? `${usZipMatch[1]} ${usZipMatch[2]}`
+        : parts.length >= 3 ? parts[parts.length - 3]?.trim() || null : null;
     
     return { neighborhood, arrondissement };
   }
