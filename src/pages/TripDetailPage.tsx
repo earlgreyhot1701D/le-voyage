@@ -1,5 +1,6 @@
 import { useState, forwardRef, useCallback, useEffect, useRef } from 'react';
 import { MapPin } from 'lucide-react';
+import { hasMapCoordinates } from '@/lib/placeMap';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout';
 import { TopBar } from '@/components/layout/TopBar';
@@ -283,12 +284,31 @@ interface PlaceCardProps {
   onRemove?: () => void;
   onAddToItinerary?: () => void;
   onUpdateNotes?: (notes: string) => Promise<void>;
+  onUpdateCategory?: (category: Place['category']) => Promise<void>;
+  onToggleMap?: () => void;
+  isOnMap?: boolean;
   canEdit?: boolean;
 }
 
-const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove, onAddToItinerary, onUpdateNotes, canEdit }, ref) => {
+const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove, onAddToItinerary, onUpdateNotes, onUpdateCategory, onToggleMap, isOnMap, canEdit }, ref) => {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(place.notes || '');
+  const [isEditingCategory, setIsEditingCategory] = useState(false);
+  const [categoryValue, setCategoryValue] = useState(place.category);
+  const [savingCategory, setSavingCategory] = useState(false);
+
+  const saveCategory = async () => {
+    if (!onUpdateCategory || savingCategory) return;
+    setSavingCategory(true);
+    try {
+      await onUpdateCategory(categoryValue);
+      setIsEditingCategory(false);
+    } catch {
+      toast.error('Could not save the category. Please try again.');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
 
   // Generate Google Search URL for researching the place
   const getSearchUrl = () => {
@@ -394,9 +414,31 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
       </div>
       
       <div className="flex gap-2 flex-wrap">
-        <span className="px-3 py-1 text-xs font-medium rounded-full bg-secondary text-secondary-foreground">
-          {place.category}
-        </span>
+        {canEdit && onUpdateCategory ? (
+          isEditingCategory ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                aria-label={`Category for ${place.name}`}
+                value={categoryValue}
+                onChange={e => setCategoryValue(e.target.value as Place['category'])}
+                disabled={savingCategory}
+                className="p-2 text-sm rounded-lg border border-border bg-background"
+              >
+                {CATEGORIES.map(category => <option key={category}>{category}</option>)}
+              </select>
+              <button type="button" onClick={saveCategory} disabled={savingCategory} className="px-3 py-2 text-xs rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
+                {savingCategory ? 'Saving…' : 'Save category'}
+              </button>
+              <button type="button" onClick={() => setIsEditingCategory(false)} disabled={savingCategory} className="px-3 py-2 text-xs">Cancel</button>
+            </div>
+          ) : (
+            <button type="button" aria-label={`Change category for ${place.name}, currently ${place.category}`} onClick={() => { setCategoryValue(place.category); setIsEditingCategory(true); }} className="px-3 py-1 text-xs font-medium rounded-full bg-secondary text-secondary-foreground hover:ring-2 hover:ring-primary/30">
+              {place.category} · Edit
+            </button>
+          )
+        ) : (
+          <span className="px-3 py-1 text-xs font-medium rounded-full bg-secondary text-secondary-foreground">{place.category}</span>
+        )}
         {place.badge && (
           <span 
             className="px-3 py-1 text-xs font-medium rounded-full"
@@ -411,6 +453,19 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
       </div>
       
       {/* Personal Notes Section */}
+      {onToggleMap && (
+        <button
+          type="button"
+          onClick={onToggleMap}
+          aria-pressed={Boolean(isOnMap)}
+          aria-label={`${isOnMap ? 'Hide' : 'Show'} ${place.name} on map`}
+          disabled={!hasMapCoordinates(place)}
+          className={`mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs disabled:opacity-50 disabled:cursor-not-allowed ${isOnMap ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:text-primary'}`}
+        >
+          <MapPin className="w-3.5 h-3.5" />
+          {!hasMapCoordinates(place) ? 'Location unavailable' : isOnMap ? 'Hide from map' : 'Show on map'}
+        </button>
+      )}
       {isEditingNotes ? (
         <div className="mt-3 space-y-2">
           <textarea
@@ -714,6 +769,13 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
   const [selectedArrondissement, setSelectedArrondissement] = useState('All');
   const [minRating, setMinRating] = useState(0);
   const [showMap, setShowMap] = useState(true);
+  const [mapMode, setMapMode] = useState<'selected' | 'all'>('selected');
+  const [selectedMapIds, setSelectedMapIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setSelectedMapIds([]);
+    setMapMode('selected');
+  }, [tripId]);
   
   // Google Places search
   const { results: searchResults, isSearching, error: searchError, search, clearResults } = usePlaceSearch();
@@ -814,6 +876,33 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
   });
   
   const groupedPlaces = groupPlacesByArea(filteredPlaces);
+  const visibleMapCandidates = filteredPlaces.filter(hasMapCoordinates);
+  const eligibleMapIds = visibleMapCandidates.map(place => place.id);
+  const eligibleMapKey = JSON.stringify(eligibleMapIds);
+  useEffect(() => {
+    const eligible = new Set<string>(JSON.parse(eligibleMapKey));
+    setSelectedMapIds(previous => {
+      const next = previous.filter(id => eligible.has(id));
+      return next.length === previous.length ? previous : next;
+    });
+  }, [eligibleMapKey]);
+  const visibleMapIds = mapMode === 'all' ? eligibleMapIds : selectedMapIds.filter(id => eligibleMapIds.includes(id));
+
+  const toggleMapPlace = (place: Place) => {
+    if (!hasMapCoordinates(place)) return;
+    setSelectedMapIds(visibleMapIds.includes(place.id)
+      ? visibleMapIds.filter(id => id !== place.id)
+      : [...visibleMapIds, place.id]);
+    setMapMode('selected');
+    setShowMap(true);
+  };
+
+  const savePlaceCategory = async (place: Place, category: Place['category']) => {
+    if (!canEdit) throw new Error('Editing is not allowed');
+    await updatePlace.mutateAsync({ placeId: place.id, updates: { category } });
+    const hiddenByCategory = selectedCategories.length > 0 && !selectedCategories.includes(category);
+    toast.success(`Category saved as ${category}.${hiddenByCategory ? ' Hidden by your current category filter.' : ''}`);
+  };
 
   const handleRemovePlace = async (placeId: string) => {
     try {
@@ -933,8 +1022,19 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
         {/* Map View */}
         {showMap && filteredPlaces.length > 0 && (
           <div className="mb-6">
+            <div className="mb-3 flex items-center gap-2 flex-wrap">
+              <div role="group" aria-label="Places shown on map" className="flex gap-2">
+                <button type="button" aria-pressed={mapMode === 'selected'} onClick={() => setMapMode('selected')} className={`px-3 py-2 rounded-lg text-sm ${mapMode === 'selected' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>Selected places</button>
+                <button type="button" aria-pressed={mapMode === 'all'} onClick={() => setMapMode('all')} className={`px-3 py-2 rounded-lg text-sm ${mapMode === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>Show all</button>
+              </div>
+              {visibleMapIds.length > 0 && <button type="button" onClick={() => { setSelectedMapIds([]); setMapMode('selected'); }} className="px-3 py-2 text-sm text-muted-foreground">Clear map</button>}
+              <p className="text-xs text-muted-foreground" aria-live="polite">
+                {visibleMapIds.length === 0 ? 'Choose “Show on map” on a card to add its dot.' : `${visibleMapIds.length} of ${eligibleMapIds.length} locations shown`}
+              </p>
+            </div>
             <TripMap 
               places={filteredPlaces}
+              visiblePlaceIds={visibleMapIds}
               destination={destination}
               className="h-[300px] rounded-xl overflow-hidden"
             />
@@ -978,6 +1078,9 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
                   <PlaceCard 
                     key={place.id} 
                     place={place} 
+                    isOnMap={visibleMapIds.includes(place.id)}
+                    onToggleMap={() => toggleMapPlace(place)}
+                    onUpdateCategory={canEdit ? category => savePlaceCategory(place, category) : undefined}
                     onRemove={canEdit ? () => handleRemovePlace(place.id) : undefined}
                     onAddToItinerary={canEdit ? () => handleAddToItinerary(place) : undefined}
                     onUpdateNotes={canEdit ? async (notes) => { await updatePlace.mutateAsync({ placeId: place.id, updates: { notes: notes || null } }); } : undefined}

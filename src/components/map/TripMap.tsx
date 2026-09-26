@@ -4,11 +4,13 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import type { Tables } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
 import { mapService } from '@/services/mapService';
+import { hasMapCoordinates } from '@/lib/placeMap';
 
 type Place = Tables<'places'>;
 
 interface TripMapProps {
   places: Place[];
+  visiblePlaceIds?: string[];
   center?: { lat: number; lng: number };
   destination?: string; // Trip destination to geocode if no center/places
   className?: string;
@@ -28,7 +30,7 @@ const categoryColors: Record<string, string> = {
   'Other': '#9CA3AF',
 };
 
-export function TripMap({ places, center, destination, className, onMarkerClick }: TripMapProps) {
+export function TripMap({ places, visiblePlaceIds, center, destination, className, onMarkerClick }: TripMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
@@ -36,6 +38,13 @@ export function TripMap({ places, center, destination, className, onMarkerClick 
   const [tokenError, setTokenError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [geocodedCenter, setGeocodedCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const lastBoundsKey = useRef('');
+  const mappablePlaces = places.filter(hasMapCoordinates);
+  const visiblePlaces = visiblePlaceIds === undefined
+    ? mappablePlaces
+    : mappablePlaces.filter(place => visiblePlaceIds.includes(place.id));
+  const boundsKey = JSON.stringify(mappablePlaces.map(place => [place.longitude, place.latitude]));
 
   // Fetch token from edge function (backed by Supabase secrets)
   useEffect(() => {
@@ -80,14 +89,16 @@ export function TripMap({ places, center, destination, className, onMarkerClick 
     if (!destination || !mapboxToken || center) return;
     
     // Check if we have places with coordinates - if so, we'll use their bounds instead
-    const placesWithCoords = places.filter(p => p.latitude && p.longitude);
+    const placesWithCoords = places.filter(hasMapCoordinates);
     if (placesWithCoords.length > 0) return;
     
+    let cancelled = false;
     mapService.geocodeAddress(destination, mapboxToken).then(coords => {
-      if (coords) {
+      if (coords && !cancelled) {
         setGeocodedCenter({ lat: coords.latitude, lng: coords.longitude });
       }
     });
+    return () => { cancelled = true; };
   }, [destination, mapboxToken, center, places]);
 
   useEffect(() => {
@@ -116,7 +127,7 @@ export function TripMap({ places, center, destination, className, onMarkerClick 
 
       // Add places as markers
       map.current.on('load', () => {
-        updateMarkers();
+        setMapReady(true);
       });
     } catch (error) {
       console.error('Mapbox initialization error:', error);
@@ -126,29 +137,36 @@ export function TripMap({ places, center, destination, className, onMarkerClick 
     return () => {
       markers.current.forEach(m => m.remove());
       map.current?.remove();
+      map.current = null;
+      setMapReady(false);
+      lastBoundsKey.current = '';
     };
   }, [mapboxToken, center, geocodedCenter]);
 
-  // Update markers when places change
+  // Fit to the trip's locations, independently of which dots are selected.
   useEffect(() => {
-    if (map.current && mapboxToken) {
-      updateMarkers();
-    }
-  }, [places, mapboxToken]);
+    if (!map.current || !mapReady || lastBoundsKey.current === boundsKey) return;
+    lastBoundsKey.current = boundsKey;
+    const coordinates = JSON.parse(boundsKey) as [number, number][];
+    if (coordinates.length === 0) return;
+    const bounds = new mapboxgl.LngLatBounds();
+    coordinates.forEach(coords => bounds.extend(coords));
+    map.current.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+  }, [boundsKey, mapReady]);
 
-  const updateMarkers = () => {
-    if (!map.current) return;
+  // Selection changes update dots without resetting the user's zoom or pan.
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
 
     // Clear existing markers
     markers.current.forEach(m => m.remove());
     markers.current = [];
 
     // Add new markers for places with coordinates
-    const placesWithCoords = places.filter(p => p.latitude && p.longitude);
+    const placesWithCoords = places.filter(place => hasMapCoordinates(place) &&
+      (visiblePlaceIds === undefined || visiblePlaceIds.includes(place.id)));
     
     placesWithCoords.forEach(place => {
-      if (!place.latitude || !place.longitude) return;
-
       const color = categoryColors[place.category] || categoryColors['Other'];
       
       // Create custom marker element
@@ -223,16 +241,17 @@ export function TripMap({ places, center, destination, className, onMarkerClick 
       markers.current.push(marker);
     });
 
-    // Fit bounds to show all markers
-    if (placesWithCoords.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-      placesWithCoords.forEach(p => {
-        if (p.latitude && p.longitude) {
-          bounds.extend([Number(p.longitude), Number(p.latitude)]);
-        }
-      });
-      map.current.fitBounds(bounds, { padding: 50, maxZoom: 14 });
-    }
+    return () => {
+      markers.current.forEach(marker => marker.remove());
+      markers.current = [];
+    };
+  }, [places, visiblePlaceIds, onMarkerClick, mapReady]);
+
+  const fitVisiblePlaces = () => {
+    if (!map.current || !mapReady || visiblePlaces.length === 0) return;
+    const bounds = new mapboxgl.LngLatBounds();
+    visiblePlaces.forEach(place => bounds.extend([place.longitude!, place.latitude!]));
+    map.current.fitBounds(bounds, { padding: 50, maxZoom: 14 });
   };
 
   // Loading state
@@ -288,6 +307,11 @@ export function TripMap({ places, center, destination, className, onMarkerClick 
   return (
     <div className={`relative rounded-2xl overflow-hidden ${className}`}>
       <div ref={mapContainer} className="absolute inset-0" />
+      {visiblePlaceIds !== undefined && visiblePlaces.length > 0 && (
+        <button type="button" onClick={fitVisiblePlaces} disabled={!mapReady} className="absolute top-3 left-3 rounded-lg bg-background px-3 py-2 text-xs font-medium shadow">
+          Fit shown places
+        </button>
+      )}
       <div 
         className="absolute bottom-3 left-3 px-3 py-1 rounded-full text-xs font-medium"
         style={{ 
@@ -295,7 +319,7 @@ export function TripMap({ places, center, destination, className, onMarkerClick 
           color: 'hsl(var(--amber-glass))' 
         }}
       >
-        {places.filter(p => p.latitude && p.longitude).length} places mapped
+        {visiblePlaces.length} {visiblePlaces.length === 1 ? 'place' : 'places'} mapped
       </div>
     </div>
   );
