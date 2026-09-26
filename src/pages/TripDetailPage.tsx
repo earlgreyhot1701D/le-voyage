@@ -1,6 +1,7 @@
 import { useState, forwardRef, useCallback, useEffect, useRef } from 'react';
 import { MapPin } from 'lucide-react';
 import { hasMapCoordinates } from '@/lib/placeMap';
+import { useTripMapPreferences } from '@/hooks/useTripMapPreferences';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout';
 import { TopBar } from '@/components/layout/TopBar';
@@ -22,6 +23,7 @@ import { toast } from 'sonner';
 
 type TripDay = Tables<'trip_days'>;
 type Place = Tables<'places'> & { added_by_display_name?: string | null };
+const EMPTY_PLACES: Place[] = [];
 type ItineraryItem = Tables<'itinerary_items'> & { profiles?: { display_name: string | null } | null };
 type Insight = Tables<'insights'>;
 
@@ -286,11 +288,12 @@ interface PlaceCardProps {
   onUpdateNotes?: (notes: string) => Promise<void>;
   onUpdateCategory?: (category: Place['category']) => Promise<void>;
   onToggleMap?: () => void;
+  onBackToMap?: () => void;
   isOnMap?: boolean;
   canEdit?: boolean;
 }
 
-const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove, onAddToItinerary, onUpdateNotes, onUpdateCategory, onToggleMap, isOnMap, canEdit }, ref) => {
+const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove, onAddToItinerary, onUpdateNotes, onUpdateCategory, onToggleMap, onBackToMap, isOnMap, canEdit }, ref) => {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(place.notes || '');
   const [isEditingCategory, setIsEditingCategory] = useState(false);
@@ -454,6 +457,7 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
       
       {/* Personal Notes Section */}
       {onToggleMap && (
+        <div className="flex items-center gap-2 flex-wrap">
         <button
           type="button"
           onClick={onToggleMap}
@@ -465,6 +469,12 @@ const PlaceCard = forwardRef<HTMLDivElement, PlaceCardProps>(({ place, onRemove,
           <MapPin className="w-3.5 h-3.5" />
           {!hasMapCoordinates(place) ? 'Location unavailable' : isOnMap ? 'Hide from map' : 'Show on map'}
         </button>
+        {onBackToMap && (
+          <button type="button" onClick={onBackToMap} className="mt-3 px-3 py-2 text-xs text-primary underline underline-offset-4">
+            Back to map
+          </button>
+        )}
+        </div>
       )}
       {isEditingNotes ? (
         <div className="mt-3 space-y-2">
@@ -662,10 +672,11 @@ function ManualAddForm({ tripId, neighborhoods, onClose }: ManualAddFormProps) {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
+  const [category, setCategory] = useState<Place['category']>('Other');
   const createPlace = useCreatePlace();
 
   const handleSubmit = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || createPlace.isPending) return;
 
     try {
       await createPlace.mutateAsync({
@@ -674,7 +685,7 @@ function ManualAddForm({ tripId, neighborhoods, onClose }: ManualAddFormProps) {
         address: address.trim() || null,
         arrondissement: null,
         neighborhood_name: neighborhood || null,
-        category: 'Other',
+        category,
         rating: null,
         badge: null,
         area_id: null,
@@ -686,6 +697,7 @@ function ManualAddForm({ tripId, neighborhoods, onClose }: ManualAddFormProps) {
       setName('');
       setAddress('');
       setNeighborhood('');
+      setCategory('Other');
       onClose();
     } catch (error) {
       console.error('Failed to add place:', error);
@@ -736,6 +748,12 @@ function ManualAddForm({ tripId, neighborhoods, onClose }: ManualAddFormProps) {
             ))}
           </select>
         </div>
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+          Category
+          <select value={category} onChange={e => setCategory(e.target.value as Place['category'])} disabled={createPlace.isPending} className="p-2 rounded-lg border border-border bg-background text-foreground text-sm">
+            {CATEGORIES.map(value => <option key={value}>{value}</option>)}
+          </select>
+        </label>
         <button
           onClick={handleSubmit}
           disabled={!name.trim() || createPlace.isPending}
@@ -755,7 +773,8 @@ interface NeighborhoodsViewProps {
 }
 
 function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsViewProps) {
-  const { data: places = [], isLoading } = usePlaces(tripId);
+  const { data: savedPlaces, isLoading } = usePlaces(tripId);
+  const places = savedPlaces ?? EMPTY_PLACES;
   const { data: tripDays = [] } = useTripDays(tripId);
   const deletePlace = useDeletePlace(tripId);
   const createPlace = useCreatePlace();
@@ -769,13 +788,16 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
   const [selectedArrondissement, setSelectedArrondissement] = useState('All');
   const [minRating, setMinRating] = useState(0);
   const [showMap, setShowMap] = useState(true);
-  const [mapMode, setMapMode] = useState<'selected' | 'all'>('selected');
-  const [selectedMapIds, setSelectedMapIds] = useState<string[]>([]);
+  const { mapMode, selectedMapIds, setMapMode, setSelectedMapIds, ready: mapPreferencesReady } = useTripMapPreferences(tripId);
+  const mapSectionRef = useRef<HTMLDivElement>(null);
+  const [returnToMap, setReturnToMap] = useState(false);
 
   useEffect(() => {
-    setSelectedMapIds([]);
-    setMapMode('selected');
-  }, [tripId]);
+    if (!returnToMap || !showMap || !mapSectionRef.current) return;
+    mapSectionRef.current.focus({ preventScroll: true });
+    mapSectionRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
+    setReturnToMap(false);
+  }, [returnToMap, showMap]);
   
   // Google Places search
   const { results: searchResults, isSearching, error: searchError, search, clearResults } = usePlaceSearch();
@@ -880,12 +902,13 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
   const eligibleMapIds = visibleMapCandidates.map(place => place.id);
   const eligibleMapKey = JSON.stringify(eligibleMapIds);
   useEffect(() => {
+    if (!savedPlaces || isLoading || !mapPreferencesReady) return;
     const eligible = new Set<string>(JSON.parse(eligibleMapKey));
     setSelectedMapIds(previous => {
       const next = previous.filter(id => eligible.has(id));
       return next.length === previous.length ? previous : next;
     });
-  }, [eligibleMapKey]);
+  }, [eligibleMapKey, savedPlaces, isLoading, mapPreferencesReady, setSelectedMapIds]);
   const visibleMapIds = mapMode === 'all' ? eligibleMapIds : selectedMapIds.filter(id => eligibleMapIds.includes(id));
 
   const toggleMapPlace = (place: Place) => {
@@ -1021,7 +1044,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
 
         {/* Map View */}
         {showMap && filteredPlaces.length > 0 && (
-          <div className="mb-6">
+          <div ref={mapSectionRef} tabIndex={-1} role="region" aria-label="Trip map" className="mb-6 scroll-mt-4 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
             <div className="mb-3 flex items-center gap-2 flex-wrap">
               <div role="group" aria-label="Places shown on map" className="flex gap-2">
                 <button type="button" aria-pressed={mapMode === 'selected'} onClick={() => setMapMode('selected')} className={`px-3 py-2 rounded-lg text-sm ${mapMode === 'selected' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>Selected places</button>
@@ -1080,6 +1103,7 @@ function NeighborhoodsView({ tripId, tripTitle, destination }: NeighborhoodsView
                     place={place} 
                     isOnMap={visibleMapIds.includes(place.id)}
                     onToggleMap={() => toggleMapPlace(place)}
+                    onBackToMap={() => { setShowMap(true); setReturnToMap(true); }}
                     onUpdateCategory={canEdit ? category => savePlaceCategory(place, category) : undefined}
                     onRemove={canEdit ? () => handleRemovePlace(place.id) : undefined}
                     onAddToItinerary={canEdit ? () => handleAddToItinerary(place) : undefined}
